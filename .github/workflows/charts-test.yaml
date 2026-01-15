@@ -15,21 +15,61 @@ permissions:
   contents: read
 
 jobs:
+  build-matrix:
+    name: Build charts/version matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    if: ${{ inputs.charts != '[]' && inputs.charts != '' }}
+    outputs:
+      matrix: ${{ steps.merge.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build kubernetes version matrix
+        id: build
+        uses: ./.github/actions/build-k8s-k3s-version-matrix
+        with:
+          min_k8s_version: "1.28"
+          github_token: ${{ github.token }}
+
+      - name: Merge charts with versions
+        id: merge
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          CHARTS_JSON: ${{ inputs.charts }}
+          VERSIONS_JSON: ${{ steps.build.outputs.versions }}
+        with:
+          script: |
+            const rawCharts = process.env.CHARTS_JSON;
+            const rawVersions = process.env.VERSIONS_JSON;
+
+            const charts = rawCharts && rawCharts !== 'null' ? JSON.parse(rawCharts) : [];
+            const versions = rawVersions && rawVersions !== 'null' ? JSON.parse(rawVersions) : [];
+
+            const matrix = charts.flatMap((chart) =>
+              versions.map((version) => ({
+                chart,
+                k8s_version: version.k8s_version,
+                k3s_tag: version.k3s_tag,
+              }))
+            );
+
+            core.setOutput('matrix', JSON.stringify(matrix));
+            console.log(JSON.stringify(matrix));
+
   install-chart:
     name: Install chart
     runs-on: ubuntu-24.04
-    if: ${{ inputs.charts != '[]' && inputs.charts != '' }}
+    timeout-minutes: 30
+    needs:
+      - build-matrix
+    if: ${{ needs.build-matrix.outputs.matrix != '[]' && needs.build-matrix.outputs.matrix != '' }}
     strategy:
       matrix:
-        chart: ${{ fromJSON(inputs.charts) }}
-        k8s_version:
-          - "v1.28.15"
-          - "v1.29.14"
-          - "v1.30.14"
-          - "v1.31.12"
-          - "v1.32.8"
-          - "v1.33.4"
-          # - "v1.34.0" TODO: Implement when k3d supports it
+        include: ${{ fromJSON(needs.build-matrix.outputs.matrix) }}
       fail-fast: false
     steps:
       - name: Checkout
@@ -55,11 +95,20 @@ jobs:
 
       - name: Install Mise and required tools
         uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
-
-      - name: Create k3d cluster
-        uses: nolar/setup-k3d-k3s@293b8e5822a20bc0d5bcdd4826f1a665e72aba96 # v1.0.9
         with:
-          version: ${{ matrix.k8s_version }}
+          cache_key: "mise-v1-{{file_hash}}"
+
+      - name: Create a new k3s cluster
+        env:
+          GH_TOKEN: ${{ github.token }}
+          K8S_VERSION: ${{ matrix.k8s_version }}
+          K3S_IMAGE: docker.io/rancher/k3s
+          K3S_TAG: ${{ matrix.k3s_tag }}
+        run: |
+          k3d cluster create --image "${K3S_IMAGE}:${K3S_TAG}"
+          echo "::group::Waiting for cluster readiness"
+          while ! kubectl get serviceaccount default >/dev/null; do sleep 1; done
+          echo "::endgroup::"
 
       - name: Remove node taints
         run: |
@@ -110,6 +159,7 @@ jobs:
   unittest-chart:
     name: Unit-test chart
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     if: ${{ inputs.charts != '[]' && inputs.charts != '' }}
     strategy:
       matrix:
@@ -132,6 +182,8 @@ jobs:
 
       - name: Install Mise and required tools
         uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
+        with:
+          cache_key: "mise-v1-{{file_hash}}"
 
       - name: Dereference JSON schema
         uses: bjw-s-labs/helm-charts-actions/dereference-json-schema@b840e92f9bb81d34ec7b1c2d396e2e8e2c0b0b91
@@ -154,7 +206,7 @@ jobs:
             exit 0
           fi
 
-          helm plugin install https://github.com/helm-unittest/helm-unittest.git
+          helm plugin install https://github.com/helm-unittest/helm-unittest.git --verify=false
           helm dep update
           helm unittest -f "unittests/**/*_test.yaml" . 2> >(grep -v 'found symbolic link' >&2)
 
