@@ -6,11 +6,11 @@
       description: "Process common lib json schema references",
       fileMatch: ["\\.json$"],
       matchStrings: [
-        "https:\\/\\/raw.githubusercontent.com\\/bjw-s-labs\\/helm-charts\\/(?<depName>\\S+?)-(?<currentValue>[\\d\\.]+?)\\/\\S+",
+        "https:\\/\\/raw.githubusercontent.com\\/owner\\/helm-charts\\/(?<depName>\\S+?)-(?<currentValue>[\\d\\.]+?)\\/\\S+",
       ],
       datasourceTemplate: "helm",
       versioningTemplate: "semver",
-      registryUrlTemplate: "https://bjw-s-labs.github.io/helm-charts"
+      registryUrlTemplate: "https://owner.github.io/helm-charts"
     },
   ],
 }

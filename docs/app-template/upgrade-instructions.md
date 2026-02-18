@@ -258,7 +258,7 @@ This is not meant as an exhaustive list of changes, but rather a "most common" e
 !!! info
 
     Some items (Ingress, ports, persistence items, etc) now default to being enabled by default. However, this is not always the case for some of the `items due to overrides in the default `values.yaml`.
-    [More background](https://github.com/bjw-s-labs/helm-charts/issues/205)
+    [More background](https://github.com/owner/helm-charts/issues/205)
 
 Given the following real-life example values.yaml for app-template v1:
 

@@ -7,7 +7,7 @@ hide:
 
 It is possible to configure default Pod options under the `defaultPodOptions` key. These options will be applied to all Pods specified in the chart values.
 
-To see which fields can be configured, please take a look at the Chart values schema specific to your Common library version. The latest version can be found here: https://github.com/bjw-s-labs/helm-charts/blob/main/charts/library/common/schemas/pod.json
+To see which fields can be configured, please take a look at the Chart values schema specific to your Common library version. The latest version can be found here: https://github.com/owner/helm-charts/blob/main/charts/library/common/schemas/pod.json
 
 ## Default value strategies
 

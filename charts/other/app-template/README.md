@@ -12,7 +12,7 @@ Kubernetes: `>=1.28.0-0`
 
 | Repository                               | Name   | Version |
 | ---------------------------------------- | ------ | ------- |
-| https://bjw-s-labs.github.io/helm-charts | common | 4.6.2   |
+| https://owner.github.io/helm-charts | common | 4.6.2   |
 
 ## Installing the Chart
 
@@ -30,7 +30,7 @@ helm install bjw-s app-template -f values.yaml
 
 ```bash
 # Install the chart
-helm install oci://ghcr.io/bjw-s-labs/helm/app-template -f values.yaml
+helm install oci://ghcr.io/owner/helm/app-template -f values.yaml
 ```
 
 ## Configuration
@@ -40,12 +40,12 @@ The [CI tests](../../library/common-test/ci) contain a number of scenarios that 
 
 ## Upgrade instructions
 
-Upgrade instructions can be found in the [documentation](https://bjw-s-labs.github.io/helm-charts/docs/app-template/#upgrade-instructions).
+Upgrade instructions can be found in the [documentation](https://owner.github.io/helm-charts/docs/app-template/#upgrade-instructions).
 
 ## Support
 
-- See the [Docs](http://bjw-s-labs.github.io/helm-charts/docs/)
-- Open an [issue](https://github.com/bjw-s-labs/helm-charts/issues/new/choose)
+- See the [Docs](http://owner.github.io/helm-charts/docs/)
+- Open an [issue](https://github.com/owner/helm-charts/issues/new/choose)
 - Join the home-operations [Discord](https://discord.gg/home-operations) community
 
 ---

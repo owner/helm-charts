@@ -2,7 +2,7 @@
   extends: [
     "github>bjw-s/renovate-config",
     "github>bjw-s/renovate-config:automerge-github-actions",
-    "github>bjw-s-labs/helm-charts//.github/renovate/custom-managers.json5",
+    "github>owner/helm-charts//.github/renovate/custom-managers.json5",
   ],
   packageRules: [
     {

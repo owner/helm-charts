@@ -2,13 +2,13 @@
 # yaml-language-server: $schema=https://squidfunk.github.io/mkdocs-material/schema.json
 
 # Project information
-site_name: bjw-s Helm Charts
-site_url: https://bjw-s-labs.github.io/helm-charts/
-site_author: bjw-s
+site_name: owner Helm Charts
+site_url: https://owner.github.io/helm-charts/
+site_author: owner
 
 # Repository
-repo_name: bjw-s-labs/helm-charts
-repo_url: https://github.com/bjw-s-labs/helm-charts
+repo_name: owner/helm-charts
+repo_url: https://github.com/owner/helm-charts
 
 # Configuration
 docs_dir: ../../docs

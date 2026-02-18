@@ -14,7 +14,7 @@
 
 <br><br>
 
-👋 Welcome to my Helm Charts repository. This repo contains Helm charts that I have developed to run applications in my [home Kubernetes cluster](https://github.com/bjw-s-labs/home-ops/).
+👋 Welcome to our Helm Charts repository. This repo contains Helm charts developed for running applications in Kubernetes clusters.
 This repo is **not** intended to be a replacement for any of the large collections of Helm charts that are out there.
 
 ---
@@ -26,7 +26,7 @@ This repo is **not** intended to be a replacement for any of the large collectio
 The Helm repository can be installed as follows:
 
 ```console
-helm repo add bjw-s https://bjw-s-labs.github.io/helm-charts
+helm repo add owner https://owner.github.io/helm-charts
 ```
 
 You can then run `helm search repo bjw-s` to search the charts.
@@ -35,7 +35,7 @@ You can then run `helm search repo bjw-s` to search the charts.
 
 ### 📖 Docs
 
-The documentation that goes along with this repo can be found [over here](https://bjw-s-labs.github.io/helm-charts/).
+The documentation that goes along with this repo can be found [over here](https://owner.github.io/helm-charts/).
 
 ---
 
@@ -70,4 +70,4 @@ repositories containing any application you might wish to run.
 
 ### 🔏 License
 
-See [LICENSE](https://github.com/bjw-s-labs/helm-charts/blob/main/LICENSE)
+See [LICENSE](https://github.com/owner/helm-charts/blob/main/LICENSE)

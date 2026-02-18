@@ -13,4 +13,4 @@ chart-dirs:
   - charts/other
 
 chart-repos:
-  - bjw-s=https://bjw-s-labs.github.io/helm-charts
+  - owner=https://owner.github.io/helm-charts
