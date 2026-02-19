@@ -12,9 +12,9 @@ sources:
 dependencies:
   - name: common
     repository: https://owner.github.io/helm-charts
-    version: 4.6.2
+    version: 4.6.3
 annotations:
   artifacthub.io/changes: |-
     - kind: changed
       description: |-
-        Update common library to v4.6.2
+        Update common library to v4.6.3
