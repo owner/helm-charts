@@ -41,6 +41,7 @@ jobs:
   release-chart:
     name: Release chart
     runs-on: ubuntu-24.04
+    environment: github-pages
 
     permissions:
       pages: write
