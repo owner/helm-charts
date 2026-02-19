@@ -1,3 +1,34 @@
 apiVersion: v1
-entries: {}
-generated: "2026-02-18T10:57:29.248138-07:00"
+entries:
+  common:
+  - annotations:
+      artifacthub.io/changes: |-
+        - kind: changed
+          description: |-
+            Updated for organization migration from bjw-s-labs to owner
+        - kind: fixed
+          description: |-
+            Make port selection by identifier in backendRefs of HTTPRoute actually do something.
+        - kind: fixed
+          description: |-
+            Route port was no longer optional while it should be.
+    apiVersion: v2
+    created: "2026-02-19T19:42:53.026305525Z"
+    description: Function library for Helm charts
+    digest: f750ed5c1695cbd7c48ff12fb06cafe2019696856a5fa90ef0c77e304f41178b
+    home: https://github.com/owner/helm-charts/tree/main/charts/library/common
+    keywords:
+    - common
+    - library
+    kubeVersion: '>=1.28.0-0'
+    maintainers:
+    - email: me@bjw-s.dev
+      name: bjw-s
+    name: common
+    sources:
+    - https://github.com/owner/helm-charts
+    type: library
+    urls:
+    - https://owner.github.io/helm-charts/library/common-4.6.3.tgz
+    version: 4.6.3
+generated: "2026-02-19T19:42:53.017337144Z"
