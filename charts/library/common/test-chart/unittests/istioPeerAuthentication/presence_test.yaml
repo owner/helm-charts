@@ -1,0 +1,76 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioPeerAuthentication - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: PeerAuthentication
+          apiVersion: security.istio.io/v1
+          any: true
+
+  - it: is created when configured
+    set:
+      istioPeerAuthentications:
+        main:
+          spec:
+            mtls:
+              mode: STRICT
+    documentSelector:
+      path: $[?(@.kind == "PeerAuthentication")].metadata.name
+      value: release-name
+    asserts:
+      - isKind:
+          of: PeerAuthentication
+      - isAPIVersion:
+          of: security.istio.io/v1
+
+  - it: can be disabled
+    set:
+      istioPeerAuthentications:
+        main:
+          enabled: false
+          spec:
+            mtls:
+              mode: STRICT
+    asserts:
+      - not: true
+        containsDocument:
+          kind: PeerAuthentication
+          apiVersion: security.istio.io/v1
+          any: true
+
+  - it: spec renders correctly
+    set:
+      istioPeerAuthentications:
+        main:
+          spec:
+            mtls:
+              mode: STRICT
+    documentSelector:
+      path: $[?(@.kind == "PeerAuthentication")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.mtls.mode
+          value: STRICT
+
+  - it: spec can render Helm template
+    set:
+      istioPeerAuthentications:
+        main:
+          spec:
+            mtls:
+              mode: "{{ .Release.Name }}"
+    documentSelector:
+      path: $[?(@.kind == "PeerAuthentication")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.mtls.mode
+          value: RELEASE-NAME

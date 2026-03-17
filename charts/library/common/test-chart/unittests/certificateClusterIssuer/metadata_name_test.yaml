@@ -1,0 +1,194 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: certificateClusterIssuer - metadata - name
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  certificateClusterIssuers.main:
+    spec:
+      acme:
+        server: https://acme-v02.api.letsencrypt.org/directory
+        email: admin@example.com
+        privateKeySecretRef:
+          name: letsencrypt-account-key
+tests:
+  - it: name defaults to chart fullName
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name
+          any: true
+
+  - it: name includes identifier when alwaysAppendIdentifierToResourceName is enabled
+    set:
+      global.alwaysAppendIdentifierToResourceName: true
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+
+  - it: forceRename
+    set:
+      certificateClusterIssuers.main.forceRename: forceRename
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: forcerename
+          any: true
+
+  - it: forceRename with template
+    set:
+      certificateClusterIssuers.main.forceRename: "{{ .Chart.Name }}"
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: common-test
+          any: true
+
+  - it: prefix
+    set:
+      certificateClusterIssuers.main.prefix: prefix
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: prefix-release-name
+          any: true
+
+  - it: prefix with template
+    set:
+      certificateClusterIssuers.main.prefix: "{{ .Chart.Name }}"
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: common-test-release-name
+          any: true
+
+  - it: suffix
+    set:
+      certificateClusterIssuers.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name-suffix
+          any: true
+
+  - it: suffix with template
+    set:
+      certificateClusterIssuers.main.suffix: "{{ .Chart.Name }}"
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name-common-test
+          any: true
+
+  - it: both prefix and suffix
+    set:
+      certificateClusterIssuers.main.prefix: prefix
+      certificateClusterIssuers.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: prefix-release-name-suffix
+          any: true
+
+  - it: multiple items
+    set:
+      certificateClusterIssuers.second:
+        spec:
+          acme:
+            server: https://acme-staging-v02.api.letsencrypt.org/directory
+            email: admin@example.com
+            privateKeySecretRef:
+              name: letsencrypt-staging-key
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name-second
+          any: true
+
+  - it: multiple items with prefix
+    set:
+      certificateClusterIssuers.second:
+        prefix: prefix
+        spec:
+          acme:
+            server: https://acme-staging-v02.api.letsencrypt.org/directory
+            email: admin@example.com
+            privateKeySecretRef:
+              name: letsencrypt-staging-key
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: prefix-release-name-second
+          any: true
+
+  - it: multiple items with suffix
+    set:
+      certificateClusterIssuers.second:
+        suffix: suffix
+        spec:
+          acme:
+            server: https://acme-staging-v02.api.letsencrypt.org/directory
+            email: admin@example.com
+            privateKeySecretRef:
+              name: letsencrypt-staging-key
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name-second-suffix
+          any: true
+
+  - it: multiple items with prefix and suffix
+    set:
+      certificateClusterIssuers.second:
+        prefix: prefix
+        suffix: suffix
+        spec:
+          acme:
+            server: https://acme-staging-v02.api.letsencrypt.org/directory
+            email: admin@example.com
+            privateKeySecretRef:
+              name: letsencrypt-staging-key
+    asserts:
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: ClusterIssuer
+          apiVersion: cert-manager.io/v1
+          name: prefix-release-name-second-suffix
+          any: true
+
+

@@ -1,0 +1,59 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: externalSecret - metadata - annotations
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  externalSecrets:
+    main:
+      spec:
+        refreshInterval: 1h
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword
+        target:
+          name: test-secret
+          creationPolicy: Owner
+        data:
+          - secretKey: MY_SECRET
+            remoteRef:
+              key: my-app/MY_SECRET
+tests:
+  - it: no annotations are set by default
+    documentSelector:
+      path: $[?(@.kind == "ExternalSecret")].metadata.name
+      value: release-name
+    asserts:
+      - notExists:
+          path: metadata.annotations
+
+  - it: custom annotations
+    set:
+      externalSecrets.main.annotations:
+        test_annotation: test
+    documentSelector:
+      path: $[?(@.kind == "ExternalSecret")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            test_annotation: test
+
+  - it: custom annotations mixed with global annotations
+    set:
+      global.annotations:
+        global_annotation: test
+      externalSecrets.main.annotations:
+        test_annotation: test
+    documentSelector:
+      path: $[?(@.kind == "ExternalSecret")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            global_annotation: test
+            test_annotation: test

@@ -1,0 +1,90 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioAuthorizationPolicy - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: AuthorizationPolicy
+          apiVersion: security.istio.io/v1
+          any: true
+
+  - it: is created when configured
+    set:
+      istioAuthorizationPolicies:
+        main:
+          spec:
+            action: ALLOW
+            rules:
+              - to:
+                  - operation:
+                      paths:
+                        - "/api/*"
+    documentSelector:
+      path: $[?(@.kind == "AuthorizationPolicy")].metadata.name
+      value: release-name
+    asserts:
+      - isKind:
+          of: AuthorizationPolicy
+      - isAPIVersion:
+          of: security.istio.io/v1
+
+  - it: can be disabled
+    set:
+      istioAuthorizationPolicies:
+        main:
+          enabled: false
+          spec:
+            action: ALLOW
+    asserts:
+      - not: true
+        containsDocument:
+          kind: AuthorizationPolicy
+          apiVersion: security.istio.io/v1
+          any: true
+
+  - it: spec renders correctly
+    set:
+      istioAuthorizationPolicies:
+        main:
+          spec:
+            action: ALLOW
+            rules:
+              - to:
+                  - operation:
+                      paths:
+                        - "/api/*"
+    documentSelector:
+      path: $[?(@.kind == "AuthorizationPolicy")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.action
+          value: ALLOW
+      - equal:
+          path: spec.rules[0].to[0].operation.paths[0]
+          value: "/api/*"
+
+  - it: spec can render Helm template
+    set:
+      istioAuthorizationPolicies:
+        main:
+          spec:
+            action: ALLOW
+            rules:
+              - to:
+                  - operation:
+                      paths:
+                        - "/{{ .Release.Name }}/*"
+    documentSelector:
+      path: $[?(@.kind == "AuthorizationPolicy")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.rules[0].to[0].operation.paths[0]
+          value: "/RELEASE-NAME/*"

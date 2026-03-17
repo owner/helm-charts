@@ -1,0 +1,76 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioAuthorizationPolicy - metadata - name
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  istioAuthorizationPolicies.main:
+    spec:
+      action: ALLOW
+tests:
+  - it: name defaults to chart fullName
+    asserts:
+      - containsDocument:
+          kind: AuthorizationPolicy
+          apiVersion: security.istio.io/v1
+          name: release-name
+          any: true
+
+  - it: name includes identifier when alwaysAppendIdentifierToResourceName is enabled
+    set:
+      global.alwaysAppendIdentifierToResourceName: true
+    asserts:
+      - containsDocument:
+          kind: AuthorizationPolicy
+          apiVersion: security.istio.io/v1
+          name: release-name-main
+          any: true
+
+  - it: forceRename
+    set:
+      istioAuthorizationPolicies.main.forceRename: forceRename
+    asserts:
+      - containsDocument:
+          kind: AuthorizationPolicy
+          apiVersion: security.istio.io/v1
+          name: forcerename
+          any: true
+
+  - it: prefix
+    set:
+      istioAuthorizationPolicies.main.prefix: prefix
+    asserts:
+      - containsDocument:
+          kind: AuthorizationPolicy
+          apiVersion: security.istio.io/v1
+          name: prefix-release-name
+          any: true
+
+  - it: suffix
+    set:
+      istioAuthorizationPolicies.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: AuthorizationPolicy
+          apiVersion: security.istio.io/v1
+          name: release-name-suffix
+          any: true
+
+  - it: multiple items
+    set:
+      istioAuthorizationPolicies.second:
+        spec:
+          action: DENY
+    asserts:
+      - containsDocument:
+          kind: AuthorizationPolicy
+          apiVersion: security.istio.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: AuthorizationPolicy
+          apiVersion: security.istio.io/v1
+          name: release-name-second
+          any: true

@@ -1,0 +1,88 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: certificateIssuer - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: an Issuer is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Issuer
+          apiVersion: cert-manager.io/v1
+          any: true
+
+  - it: an Issuer is not created when empty
+    set:
+      certificateIssuers: {}
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Issuer
+          apiVersion: cert-manager.io/v1
+          any: true
+
+  - it: an Issuer is created when configured
+    set:
+      certificateIssuers:
+        main:
+          spec:
+            acme:
+              server: https://acme-v02.api.letsencrypt.org/directory
+              email: admin@example.com
+              privateKeySecretRef:
+                name: letsencrypt-account-key
+    documentSelector:
+      path: $[?(@.kind == "Issuer")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: NAMESPACE
+      - equal:
+          path: spec.acme.server
+          value: https://acme-v02.api.letsencrypt.org/directory
+      - equal:
+          path: spec.acme.email
+          value: admin@example.com
+      - equal:
+          path: spec.acme.privateKeySecretRef.name
+          value: letsencrypt-account-key
+
+  - it: an Issuer is not created when disabled
+    set:
+      certificateIssuers:
+        main:
+          enabled: false
+          spec:
+            acme:
+              server: https://acme-v02.api.letsencrypt.org/directory
+              email: admin@example.com
+              privateKeySecretRef:
+                name: letsencrypt-account-key
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Issuer
+          apiVersion: cert-manager.io/v1
+          any: true
+
+  - it: spec can render Helm template
+    set:
+      certificateIssuers:
+        main:
+          spec:
+            acme:
+              server: https://acme-v02.api.letsencrypt.org/directory
+              email: "{{ .Release.Name }}@example.com"
+              privateKeySecretRef:
+                name: letsencrypt-account-key
+    documentSelector:
+      path: $[?(@.kind == "Issuer")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.acme.email
+          value: RELEASE-NAME@example.com

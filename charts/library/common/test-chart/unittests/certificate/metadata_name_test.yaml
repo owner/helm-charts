@@ -1,0 +1,199 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: certificate - metadata - name
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  certificates.main:
+    spec:
+      dnsNames:
+        - example.com
+      issuerRef:
+        kind: ClusterIssuer
+        name: letsencrypt-prod
+      secretName: example-tls
+tests:
+  - it: name defaults to chart fullName
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name
+          any: true
+
+  - it: name includes identifier when alwaysAppendIdentifierToResourceName is enabled
+    set:
+      global.alwaysAppendIdentifierToResourceName: true
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+
+  - it: forceRename
+    set:
+      certificates.main.forceRename: forceRename
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: forcerename
+          any: true
+
+  - it: forceRename with template
+    set:
+      certificates.main.forceRename: "{{ .Chart.Name }}"
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: common-test
+          any: true
+
+  - it: prefix
+    set:
+      certificates.main.prefix: prefix
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: prefix-release-name
+          any: true
+
+  - it: prefix with template
+    set:
+      certificates.main.prefix: "{{ .Chart.Name }}"
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: common-test-release-name
+          any: true
+
+  - it: suffix
+    set:
+      certificates.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name-suffix
+          any: true
+
+  - it: suffix with template
+    set:
+      certificates.main.suffix: "{{ .Chart.Name }}"
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name-common-test
+          any: true
+
+  - it: both prefix and suffix
+    set:
+      certificates.main.prefix: prefix
+      certificates.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: prefix-release-name-suffix
+          any: true
+
+  - it: multiple items
+    set:
+      certificates.second:
+        spec:
+          dnsNames:
+            - example.org
+          issuerRef:
+            kind: ClusterIssuer
+            name: letsencrypt-prod
+          secretName: example-org-tls
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name-second
+          any: true
+
+  - it: multiple items with prefix
+    set:
+      certificates.second:
+        prefix: prefix
+        spec:
+          dnsNames:
+            - example.org
+          issuerRef:
+            kind: ClusterIssuer
+            name: letsencrypt-prod
+          secretName: example-org-tls
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: prefix-release-name-second
+          any: true
+
+  - it: multiple items with suffix
+    set:
+      certificates.second:
+        suffix: suffix
+        spec:
+          dnsNames:
+            - example.org
+          issuerRef:
+            kind: ClusterIssuer
+            name: letsencrypt-prod
+          secretName: example-org-tls
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name-second-suffix
+          any: true
+
+  - it: multiple items with prefix and suffix
+    set:
+      certificates.second:
+        prefix: prefix
+        suffix: suffix
+        spec:
+          dnsNames:
+            - example.org
+          issuerRef:
+            kind: ClusterIssuer
+            name: letsencrypt-prod
+          secretName: example-org-tls
+    asserts:
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          name: prefix-release-name-second-suffix
+          any: true
+
+

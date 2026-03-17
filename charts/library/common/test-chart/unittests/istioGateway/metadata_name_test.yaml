@@ -1,0 +1,78 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioGateway - metadata - name
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  istioGateways.main:
+    spec:
+      selector:
+        istio: ingressgateway
+tests:
+  - it: name defaults to chart fullName
+    asserts:
+      - containsDocument:
+          kind: Gateway
+          apiVersion: networking.istio.io/v1
+          name: release-name
+          any: true
+
+  - it: name includes identifier when alwaysAppendIdentifierToResourceName is enabled
+    set:
+      global.alwaysAppendIdentifierToResourceName: true
+    asserts:
+      - containsDocument:
+          kind: Gateway
+          apiVersion: networking.istio.io/v1
+          name: release-name-main
+          any: true
+
+  - it: forceRename
+    set:
+      istioGateways.main.forceRename: forceRename
+    asserts:
+      - containsDocument:
+          kind: Gateway
+          apiVersion: networking.istio.io/v1
+          name: forcerename
+          any: true
+
+  - it: prefix
+    set:
+      istioGateways.main.prefix: prefix
+    asserts:
+      - containsDocument:
+          kind: Gateway
+          apiVersion: networking.istio.io/v1
+          name: prefix-release-name
+          any: true
+
+  - it: suffix
+    set:
+      istioGateways.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: Gateway
+          apiVersion: networking.istio.io/v1
+          name: release-name-suffix
+          any: true
+
+  - it: multiple items
+    set:
+      istioGateways.second:
+        spec:
+          selector:
+            istio: ingressgateway
+    asserts:
+      - containsDocument:
+          kind: Gateway
+          apiVersion: networking.istio.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: Gateway
+          apiVersion: networking.istio.io/v1
+          name: release-name-second
+          any: true

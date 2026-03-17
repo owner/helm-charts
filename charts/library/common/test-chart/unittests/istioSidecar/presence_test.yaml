@@ -1,0 +1,86 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioSidecar - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Sidecar
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: is created when configured
+    set:
+      istioSidecars:
+        main:
+          spec:
+            egress:
+              - hosts:
+                  - "./*"
+                  - "istio-system/*"
+    documentSelector:
+      path: $[?(@.kind == "Sidecar")].metadata.name
+      value: release-name
+    asserts:
+      - isKind:
+          of: Sidecar
+      - isAPIVersion:
+          of: networking.istio.io/v1
+
+  - it: can be disabled
+    set:
+      istioSidecars:
+        main:
+          enabled: false
+          spec:
+            egress:
+              - hosts:
+                  - "./*"
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Sidecar
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: spec renders correctly
+    set:
+      istioSidecars:
+        main:
+          spec:
+            egress:
+              - hosts:
+                  - "./*"
+                  - "istio-system/*"
+    documentSelector:
+      path: $[?(@.kind == "Sidecar")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.egress[0].hosts[0]
+          value: "./*"
+      - equal:
+          path: spec.egress[0].hosts[1]
+          value: "istio-system/*"
+
+  - it: spec can render Helm template
+    set:
+      istioSidecars:
+        main:
+          spec:
+            egress:
+              - hosts:
+                  - "./*"
+                  - "{{ .Release.Name }}/*"
+    documentSelector:
+      path: $[?(@.kind == "Sidecar")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.egress[0].hosts[1]
+          value: "RELEASE-NAME/*"

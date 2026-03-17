@@ -1,0 +1,84 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioDestinationRule - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: DestinationRule
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: is created when configured
+    set:
+      istioDestinationRules:
+        main:
+          spec:
+            host: test-service
+            trafficPolicy:
+              tls:
+                mode: ISTIO_MUTUAL
+    documentSelector:
+      path: $[?(@.kind == "DestinationRule")].metadata.name
+      value: release-name
+    asserts:
+      - isKind:
+          of: DestinationRule
+      - isAPIVersion:
+          of: networking.istio.io/v1
+
+  - it: can be disabled
+    set:
+      istioDestinationRules:
+        main:
+          enabled: false
+          spec:
+            host: test-service
+    asserts:
+      - not: true
+        containsDocument:
+          kind: DestinationRule
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: spec renders correctly
+    set:
+      istioDestinationRules:
+        main:
+          spec:
+            host: test-service
+            trafficPolicy:
+              tls:
+                mode: ISTIO_MUTUAL
+    documentSelector:
+      path: $[?(@.kind == "DestinationRule")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.host
+          value: test-service
+      - equal:
+          path: spec.trafficPolicy.tls.mode
+          value: ISTIO_MUTUAL
+
+  - it: spec can render Helm template
+    set:
+      istioDestinationRules:
+        main:
+          spec:
+            host: "{{ .Release.Name }}-service"
+            trafficPolicy:
+              tls:
+                mode: ISTIO_MUTUAL
+    documentSelector:
+      path: $[?(@.kind == "DestinationRule")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.host
+          value: RELEASE-NAME-service

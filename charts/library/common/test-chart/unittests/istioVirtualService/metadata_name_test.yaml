@@ -1,0 +1,78 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioVirtualService - metadata - name
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  istioVirtualServices.main:
+    spec:
+      hosts:
+        - example.com
+tests:
+  - it: name defaults to chart fullName
+    asserts:
+      - containsDocument:
+          kind: VirtualService
+          apiVersion: networking.istio.io/v1
+          name: release-name
+          any: true
+
+  - it: name includes identifier when alwaysAppendIdentifierToResourceName is enabled
+    set:
+      global.alwaysAppendIdentifierToResourceName: true
+    asserts:
+      - containsDocument:
+          kind: VirtualService
+          apiVersion: networking.istio.io/v1
+          name: release-name-main
+          any: true
+
+  - it: forceRename
+    set:
+      istioVirtualServices.main.forceRename: forceRename
+    asserts:
+      - containsDocument:
+          kind: VirtualService
+          apiVersion: networking.istio.io/v1
+          name: forcerename
+          any: true
+
+  - it: prefix
+    set:
+      istioVirtualServices.main.prefix: prefix
+    asserts:
+      - containsDocument:
+          kind: VirtualService
+          apiVersion: networking.istio.io/v1
+          name: prefix-release-name
+          any: true
+
+  - it: suffix
+    set:
+      istioVirtualServices.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: VirtualService
+          apiVersion: networking.istio.io/v1
+          name: release-name-suffix
+          any: true
+
+  - it: multiple items
+    set:
+      istioVirtualServices.second:
+        spec:
+          hosts:
+            - other.example.com
+    asserts:
+      - containsDocument:
+          kind: VirtualService
+          apiVersion: networking.istio.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: VirtualService
+          apiVersion: networking.istio.io/v1
+          name: release-name-second
+          any: true

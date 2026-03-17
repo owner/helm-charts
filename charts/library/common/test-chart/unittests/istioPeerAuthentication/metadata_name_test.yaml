@@ -1,0 +1,78 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioPeerAuthentication - metadata - name
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  istioPeerAuthentications.main:
+    spec:
+      mtls:
+        mode: STRICT
+tests:
+  - it: name defaults to chart fullName
+    asserts:
+      - containsDocument:
+          kind: PeerAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name
+          any: true
+
+  - it: name includes identifier when alwaysAppendIdentifierToResourceName is enabled
+    set:
+      global.alwaysAppendIdentifierToResourceName: true
+    asserts:
+      - containsDocument:
+          kind: PeerAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name-main
+          any: true
+
+  - it: forceRename
+    set:
+      istioPeerAuthentications.main.forceRename: forceRename
+    asserts:
+      - containsDocument:
+          kind: PeerAuthentication
+          apiVersion: security.istio.io/v1
+          name: forcerename
+          any: true
+
+  - it: prefix
+    set:
+      istioPeerAuthentications.main.prefix: prefix
+    asserts:
+      - containsDocument:
+          kind: PeerAuthentication
+          apiVersion: security.istio.io/v1
+          name: prefix-release-name
+          any: true
+
+  - it: suffix
+    set:
+      istioPeerAuthentications.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: PeerAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name-suffix
+          any: true
+
+  - it: multiple items
+    set:
+      istioPeerAuthentications.second:
+        spec:
+          mtls:
+            mode: PERMISSIVE
+    asserts:
+      - containsDocument:
+          kind: PeerAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: PeerAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name-second
+          any: true

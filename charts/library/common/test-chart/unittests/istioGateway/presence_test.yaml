@@ -1,0 +1,100 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioGateway - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Gateway
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: is created when configured
+    set:
+      istioGateways:
+        main:
+          spec:
+            selector:
+              istio: ingressgateway
+            servers:
+              - hosts:
+                  - example.com
+                port:
+                  name: https
+                  number: 443
+                  protocol: HTTPS
+    documentSelector:
+      path: $[?(@.kind == "Gateway")].metadata.name
+      value: release-name
+    asserts:
+      - isKind:
+          of: Gateway
+      - isAPIVersion:
+          of: networking.istio.io/v1
+
+  - it: can be disabled
+    set:
+      istioGateways:
+        main:
+          enabled: false
+          spec:
+            selector:
+              istio: ingressgateway
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Gateway
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: spec renders correctly
+    set:
+      istioGateways:
+        main:
+          spec:
+            selector:
+              istio: ingressgateway
+            servers:
+              - hosts:
+                  - example.com
+                port:
+                  name: https
+                  number: 443
+                  protocol: HTTPS
+    documentSelector:
+      path: $[?(@.kind == "Gateway")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.selector.istio
+          value: ingressgateway
+      - equal:
+          path: spec.servers[0].hosts[0]
+          value: example.com
+
+  - it: spec can render Helm template
+    set:
+      istioGateways:
+        main:
+          spec:
+            selector:
+              istio: ingressgateway
+            servers:
+              - hosts:
+                  - "{{ .Release.Name }}.example.com"
+                port:
+                  name: https
+                  number: 443
+                  protocol: HTTPS
+    documentSelector:
+      path: $[?(@.kind == "Gateway")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.servers[0].hosts[0]
+          value: RELEASE-NAME.example.com

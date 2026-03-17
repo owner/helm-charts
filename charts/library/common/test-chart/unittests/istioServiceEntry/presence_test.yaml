@@ -1,0 +1,97 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioServiceEntry - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: ServiceEntry
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: is created when configured
+    set:
+      istioServiceEntries:
+        main:
+          spec:
+            hosts:
+              - external.example.com
+            location: MESH_EXTERNAL
+            ports:
+              - number: 443
+                name: https
+                protocol: HTTPS
+            resolution: DNS
+    documentSelector:
+      path: $[?(@.kind == "ServiceEntry")].metadata.name
+      value: release-name
+    asserts:
+      - isKind:
+          of: ServiceEntry
+      - isAPIVersion:
+          of: networking.istio.io/v1
+
+  - it: can be disabled
+    set:
+      istioServiceEntries:
+        main:
+          enabled: false
+          spec:
+            hosts:
+              - external.example.com
+    asserts:
+      - not: true
+        containsDocument:
+          kind: ServiceEntry
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: spec renders correctly
+    set:
+      istioServiceEntries:
+        main:
+          spec:
+            hosts:
+              - external.example.com
+            location: MESH_EXTERNAL
+            ports:
+              - number: 443
+                name: https
+                protocol: HTTPS
+            resolution: DNS
+    documentSelector:
+      path: $[?(@.kind == "ServiceEntry")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.hosts[0]
+          value: external.example.com
+      - equal:
+          path: spec.location
+          value: MESH_EXTERNAL
+
+  - it: spec can render Helm template
+    set:
+      istioServiceEntries:
+        main:
+          spec:
+            hosts:
+              - "{{ .Release.Name }}.example.com"
+            location: MESH_EXTERNAL
+            ports:
+              - number: 443
+                name: https
+                protocol: HTTPS
+            resolution: DNS
+    documentSelector:
+      path: $[?(@.kind == "ServiceEntry")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.hosts[0]
+          value: RELEASE-NAME.example.com

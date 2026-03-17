@@ -1,0 +1,78 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioServiceEntry - metadata - name
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  istioServiceEntries.main:
+    spec:
+      hosts:
+        - external.example.com
+tests:
+  - it: name defaults to chart fullName
+    asserts:
+      - containsDocument:
+          kind: ServiceEntry
+          apiVersion: networking.istio.io/v1
+          name: release-name
+          any: true
+
+  - it: name includes identifier when alwaysAppendIdentifierToResourceName is enabled
+    set:
+      global.alwaysAppendIdentifierToResourceName: true
+    asserts:
+      - containsDocument:
+          kind: ServiceEntry
+          apiVersion: networking.istio.io/v1
+          name: release-name-main
+          any: true
+
+  - it: forceRename
+    set:
+      istioServiceEntries.main.forceRename: forceRename
+    asserts:
+      - containsDocument:
+          kind: ServiceEntry
+          apiVersion: networking.istio.io/v1
+          name: forcerename
+          any: true
+
+  - it: prefix
+    set:
+      istioServiceEntries.main.prefix: prefix
+    asserts:
+      - containsDocument:
+          kind: ServiceEntry
+          apiVersion: networking.istio.io/v1
+          name: prefix-release-name
+          any: true
+
+  - it: suffix
+    set:
+      istioServiceEntries.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: ServiceEntry
+          apiVersion: networking.istio.io/v1
+          name: release-name-suffix
+          any: true
+
+  - it: multiple items
+    set:
+      istioServiceEntries.second:
+        spec:
+          hosts:
+            - other.example.com
+    asserts:
+      - containsDocument:
+          kind: ServiceEntry
+          apiVersion: networking.istio.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: ServiceEntry
+          apiVersion: networking.istio.io/v1
+          name: release-name-second
+          any: true

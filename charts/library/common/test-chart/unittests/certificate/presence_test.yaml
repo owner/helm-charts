@@ -1,0 +1,94 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: certificate - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: a Certificate is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          any: true
+
+  - it: a Certificate is not created when empty
+    set:
+      certificates: {}
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          any: true
+
+  - it: a Certificate is created when configured
+    set:
+      certificates:
+        main:
+          spec:
+            dnsNames:
+              - example.com
+            issuerRef:
+              kind: ClusterIssuer
+              name: letsencrypt-prod
+            secretName: example-tls
+    documentSelector:
+      path: $[?(@.kind == "Certificate")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: NAMESPACE
+      - equal:
+          path: spec.dnsNames[0]
+          value: example.com
+      - equal:
+          path: spec.issuerRef.kind
+          value: ClusterIssuer
+      - equal:
+          path: spec.issuerRef.name
+          value: letsencrypt-prod
+      - equal:
+          path: spec.secretName
+          value: example-tls
+
+  - it: a Certificate is not created when disabled
+    set:
+      certificates:
+        main:
+          enabled: false
+          spec:
+            dnsNames:
+              - example.com
+            issuerRef:
+              kind: ClusterIssuer
+              name: letsencrypt-prod
+            secretName: example-tls
+    asserts:
+      - not: true
+        containsDocument:
+          kind: Certificate
+          apiVersion: cert-manager.io/v1
+          any: true
+
+  - it: spec can render Helm template
+    set:
+      certificates:
+        main:
+          spec:
+            dnsNames:
+              - "{{ .Release.Name }}.example.com"
+            issuerRef:
+              kind: ClusterIssuer
+              name: letsencrypt-prod
+            secretName: example-tls
+    documentSelector:
+      path: $[?(@.kind == "Certificate")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.dnsNames[0]
+          value: RELEASE-NAME.example.com

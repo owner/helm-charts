@@ -1,0 +1,118 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: externalSecret - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: an ExternalSecret is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          any: true
+
+  - it: an ExternalSecret is not created when empty
+    set:
+      externalSecrets: {}
+    asserts:
+      - not: true
+        containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          any: true
+
+  - it: an ExternalSecret is created when configured
+    set:
+      externalSecrets:
+        main:
+          spec:
+            refreshInterval: 1h
+            secretStoreRef:
+              kind: ClusterSecretStore
+              name: onepassword
+            target:
+              name: test-secret
+              creationPolicy: Owner
+            data:
+              - secretKey: MY_SECRET
+                remoteRef:
+                  key: my-app/MY_SECRET
+    documentSelector:
+      path: $[?(@.kind == "ExternalSecret")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: NAMESPACE
+      - equal:
+          path: spec.refreshInterval
+          value: 1h
+      - equal:
+          path: spec.secretStoreRef.kind
+          value: ClusterSecretStore
+      - equal:
+          path: spec.secretStoreRef.name
+          value: onepassword
+      - equal:
+          path: spec.target.name
+          value: test-secret
+      - equal:
+          path: spec.target.creationPolicy
+          value: Owner
+      - equal:
+          path: spec.data[0].secretKey
+          value: MY_SECRET
+      - equal:
+          path: spec.data[0].remoteRef.key
+          value: my-app/MY_SECRET
+
+  - it: an ExternalSecret is not created when disabled
+    set:
+      externalSecrets:
+        main:
+          enabled: false
+          spec:
+            refreshInterval: 1h
+            secretStoreRef:
+              kind: ClusterSecretStore
+              name: onepassword
+            target:
+              name: test-secret
+              creationPolicy: Owner
+            data:
+              - secretKey: MY_SECRET
+                remoteRef:
+                  key: my-app/MY_SECRET
+    asserts:
+      - not: true
+        containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          any: true
+
+  - it: spec can render Helm template
+    set:
+      externalSecrets:
+        main:
+          spec:
+            refreshInterval: 1h
+            secretStoreRef:
+              kind: ClusterSecretStore
+              name: onepassword
+            target:
+              name: "{{ .Release.Name }}-secret"
+              creationPolicy: Owner
+            data:
+              - secretKey: MY_SECRET
+                remoteRef:
+                  key: my-app/MY_SECRET
+    documentSelector:
+      path: $[?(@.kind == "ExternalSecret")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.target.name
+          value: RELEASE-NAME-secret

@@ -1,0 +1,78 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioRequestAuthentication - metadata - name
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  istioRequestAuthentications.main:
+    spec:
+      jwtRules:
+        - issuer: https://accounts.google.com
+tests:
+  - it: name defaults to chart fullName
+    asserts:
+      - containsDocument:
+          kind: RequestAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name
+          any: true
+
+  - it: name includes identifier when alwaysAppendIdentifierToResourceName is enabled
+    set:
+      global.alwaysAppendIdentifierToResourceName: true
+    asserts:
+      - containsDocument:
+          kind: RequestAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name-main
+          any: true
+
+  - it: forceRename
+    set:
+      istioRequestAuthentications.main.forceRename: forceRename
+    asserts:
+      - containsDocument:
+          kind: RequestAuthentication
+          apiVersion: security.istio.io/v1
+          name: forcerename
+          any: true
+
+  - it: prefix
+    set:
+      istioRequestAuthentications.main.prefix: prefix
+    asserts:
+      - containsDocument:
+          kind: RequestAuthentication
+          apiVersion: security.istio.io/v1
+          name: prefix-release-name
+          any: true
+
+  - it: suffix
+    set:
+      istioRequestAuthentications.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: RequestAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name-suffix
+          any: true
+
+  - it: multiple items
+    set:
+      istioRequestAuthentications.second:
+        spec:
+          jwtRules:
+            - issuer: https://other.example.com
+    asserts:
+      - containsDocument:
+          kind: RequestAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: RequestAuthentication
+          apiVersion: security.istio.io/v1
+          name: release-name-second
+          any: true

@@ -1,0 +1,224 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: externalSecret - metadata - name
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+set:
+  externalSecrets.main:
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        kind: ClusterSecretStore
+        name: onepassword
+      target:
+        name: test-secret
+        creationPolicy: Owner
+      data:
+        - secretKey: MY_SECRET
+          remoteRef:
+            key: my-app/MY_SECRET
+tests:
+  - it: name defaults to chart fullName
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name
+          any: true
+
+  - it: name includes identifier when alwaysAppendIdentifierToResourceName is enabled
+    set:
+      global.alwaysAppendIdentifierToResourceName: true
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name-main
+          any: true
+
+  - it: forceRename
+    set:
+      externalSecrets.main.forceRename: forceRename
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: forcerename
+          any: true
+
+  - it: forceRename with template
+    set:
+      externalSecrets.main.forceRename: "{{ .Chart.Name }}"
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: common-test
+          any: true
+
+  - it: prefix
+    set:
+      externalSecrets.main.prefix: prefix
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: prefix-release-name
+          any: true
+
+  - it: prefix with template
+    set:
+      externalSecrets.main.prefix: "{{ .Chart.Name }}"
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: common-test-release-name
+          any: true
+
+  - it: suffix
+    set:
+      externalSecrets.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name-suffix
+          any: true
+
+  - it: suffix with template
+    set:
+      externalSecrets.main.suffix: "{{ .Chart.Name }}"
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name-common-test
+          any: true
+
+  - it: both prefix and suffix
+    set:
+      externalSecrets.main.prefix: prefix
+      externalSecrets.main.suffix: suffix
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: prefix-release-name-suffix
+          any: true
+
+  - it: multiple items
+    set:
+      externalSecrets.second:
+        spec:
+          refreshInterval: 1h
+          secretStoreRef:
+            kind: ClusterSecretStore
+            name: onepassword
+          target:
+            name: test-secret-2
+            creationPolicy: Owner
+          data:
+            - secretKey: OTHER_SECRET
+              remoteRef:
+                key: my-app/OTHER_SECRET
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name-second
+          any: true
+
+  - it: multiple items with prefix
+    set:
+      externalSecrets.second:
+        prefix: prefix
+        spec:
+          refreshInterval: 1h
+          secretStoreRef:
+            kind: ClusterSecretStore
+            name: onepassword
+          target:
+            name: test-secret-2
+            creationPolicy: Owner
+          data:
+            - secretKey: OTHER_SECRET
+              remoteRef:
+                key: my-app/OTHER_SECRET
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: prefix-release-name-second
+          any: true
+
+  - it: multiple items with suffix
+    set:
+      externalSecrets.second:
+        suffix: suffix
+        spec:
+          refreshInterval: 1h
+          secretStoreRef:
+            kind: ClusterSecretStore
+            name: onepassword
+          target:
+            name: test-secret-2
+            creationPolicy: Owner
+          data:
+            - secretKey: OTHER_SECRET
+              remoteRef:
+                key: my-app/OTHER_SECRET
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name-second-suffix
+          any: true
+
+  - it: multiple items with prefix and suffix
+    set:
+      externalSecrets.second:
+        prefix: prefix
+        suffix: suffix
+        spec:
+          refreshInterval: 1h
+          secretStoreRef:
+            kind: ClusterSecretStore
+            name: onepassword
+          target:
+            name: test-secret-2
+            creationPolicy: Owner
+          data:
+            - secretKey: OTHER_SECRET
+              remoteRef:
+                key: my-app/OTHER_SECRET
+    asserts:
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: release-name-main
+          any: true
+      - containsDocument:
+          kind: ExternalSecret
+          apiVersion: external-secrets.io/v1
+          name: prefix-release-name-second-suffix
+          any: true
+
+

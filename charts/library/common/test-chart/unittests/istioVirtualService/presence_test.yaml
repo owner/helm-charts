@@ -1,0 +1,101 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioVirtualService - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: VirtualService
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: is created when configured
+    set:
+      istioVirtualServices:
+        main:
+          spec:
+            hosts:
+              - example.com
+            gateways:
+              - istio-system/ingressgateway
+            http:
+              - route:
+                  - destination:
+                      host: test
+                      port:
+                        number: 80
+    documentSelector:
+      path: $[?(@.kind == "VirtualService")].metadata.name
+      value: release-name
+    asserts:
+      - isKind:
+          of: VirtualService
+      - isAPIVersion:
+          of: networking.istio.io/v1
+
+  - it: can be disabled
+    set:
+      istioVirtualServices:
+        main:
+          enabled: false
+          spec:
+            hosts:
+              - example.com
+    asserts:
+      - not: true
+        containsDocument:
+          kind: VirtualService
+          apiVersion: networking.istio.io/v1
+          any: true
+
+  - it: spec renders correctly
+    set:
+      istioVirtualServices:
+        main:
+          spec:
+            hosts:
+              - example.com
+            gateways:
+              - istio-system/ingressgateway
+            http:
+              - route:
+                  - destination:
+                      host: test
+                      port:
+                        number: 80
+    documentSelector:
+      path: $[?(@.kind == "VirtualService")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.hosts[0]
+          value: example.com
+      - equal:
+          path: spec.gateways[0]
+          value: istio-system/ingressgateway
+
+  - it: spec can render Helm template
+    set:
+      istioVirtualServices:
+        main:
+          spec:
+            hosts:
+              - example.com
+            http:
+              - route:
+                  - destination:
+                      host: "{{ .Release.Name }}"
+                      port:
+                        number: 80
+    documentSelector:
+      path: $[?(@.kind == "VirtualService")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: RELEASE-NAME

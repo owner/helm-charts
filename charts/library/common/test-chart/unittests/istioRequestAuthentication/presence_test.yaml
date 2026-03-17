@@ -1,0 +1,82 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: istioRequestAuthentication - presence
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: is not created by default
+    asserts:
+      - not: true
+        containsDocument:
+          kind: RequestAuthentication
+          apiVersion: security.istio.io/v1
+          any: true
+
+  - it: is created when configured
+    set:
+      istioRequestAuthentications:
+        main:
+          spec:
+            jwtRules:
+              - issuer: https://accounts.google.com
+                jwksUri: https://www.googleapis.com/oauth2/v3/certs
+    documentSelector:
+      path: $[?(@.kind == "RequestAuthentication")].metadata.name
+      value: release-name
+    asserts:
+      - isKind:
+          of: RequestAuthentication
+      - isAPIVersion:
+          of: security.istio.io/v1
+
+  - it: can be disabled
+    set:
+      istioRequestAuthentications:
+        main:
+          enabled: false
+          spec:
+            jwtRules:
+              - issuer: https://accounts.google.com
+    asserts:
+      - not: true
+        containsDocument:
+          kind: RequestAuthentication
+          apiVersion: security.istio.io/v1
+          any: true
+
+  - it: spec renders correctly
+    set:
+      istioRequestAuthentications:
+        main:
+          spec:
+            jwtRules:
+              - issuer: https://accounts.google.com
+                jwksUri: https://www.googleapis.com/oauth2/v3/certs
+    documentSelector:
+      path: $[?(@.kind == "RequestAuthentication")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.jwtRules[0].issuer
+          value: https://accounts.google.com
+      - equal:
+          path: spec.jwtRules[0].jwksUri
+          value: https://www.googleapis.com/oauth2/v3/certs
+
+  - it: spec can render Helm template
+    set:
+      istioRequestAuthentications:
+        main:
+          spec:
+            jwtRules:
+              - issuer: "https://{{ .Release.Name }}.example.com"
+                jwksUri: https://www.googleapis.com/oauth2/v3/certs
+    documentSelector:
+      path: $[?(@.kind == "RequestAuthentication")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.jwtRules[0].issuer
+          value: https://RELEASE-NAME.example.com
