@@ -72,6 +72,7 @@ nav:
       - common-library/index.md
       - Generated Resources:
           - common-library/resources/names.md
+          - CRD Resources: common-library/resources/crds.md
       - Storage:
           - Permissions: common-library/storage/permissions.md
           - Global options: common-library/storage/globalOptions.md
@@ -97,7 +98,9 @@ nav:
           - Set up environment variables: app-template/howto/environment-variables.md
           - Multiple subPaths for 1 volume: app-template/howto/multiple-subpath.md
           - Multiple services with 1 or more controllers: app-template/howto/multiple-services.md
+          - Native CRD resources: app-template/howto/native-crds.md
       - Examples:
           - app-template/examples/index.md
           - Home-Assistant with code-server: app-template/examples/home-assistant-codeserver.md
           - qBittorrent with Gluetun: app-template/examples/qbittorrent-gluetun.md
+          - Service with ExternalSecret & Istio: app-template/examples/externalsecret-istio.md

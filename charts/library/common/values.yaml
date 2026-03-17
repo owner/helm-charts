@@ -824,6 +824,300 @@ networkpolicies:
   #     egress:
   #       - {}
 
+# -- Configure ExternalSecrets for the chart here.
+# Additional ExternalSecrets can be added by adding a dictionary key similar to the 'main' ExternalSecret.
+# [[ref]](https://external-secrets.io/latest/api/externalsecret/)
+# @default -- See below
+externalSecrets:
+  {}
+  # main:
+  #   # -- Enables or disables the ExternalSecret. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this ExternalSecret.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- ExternalSecret spec. Helm templates can be used.
+  #   spec:
+  #     refreshInterval: 1h
+  #     secretStoreRef:
+  #       kind: ClusterSecretStore
+  #       name: onepassword
+  #     target:
+  #       name: "{{ .Release.Name }}-secret"
+  #       creationPolicy: Owner
+  #     data:
+  #       - secretKey: MY_SECRET
+  #         remoteRef:
+  #           key: my-app/MY_SECRET
+
+# -- Configure cert-manager Certificates for the chart here.
+# [[ref]](https://cert-manager.io/docs/usage/certificate/)
+# @default -- See below
+certificates:
+  {}
+  # main:
+  #   # -- Enables or disables the Certificate. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this Certificate.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- Certificate spec. Helm templates can be used.
+  #   spec:
+  #     secretName: "{{ .Release.Name }}-tls"
+  #     dnsNames:
+  #       - example.com
+  #     issuerRef:
+  #       kind: ClusterIssuer
+  #       name: letsencrypt-prod
+
+# -- Configure cert-manager Issuers for the chart here.
+# [[ref]](https://cert-manager.io/docs/configuration/)
+# @default -- See below
+certificateIssuers:
+  {}
+  # main:
+  #   # -- Enables or disables the Issuer. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this Issuer.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- Issuer spec. Helm templates can be used.
+  #   spec:
+  #     acme:
+  #       server: https://acme-v02.api.letsencrypt.org/directory
+  #       email: admin@example.com
+  #       privateKeySecretRef:
+  #         name: letsencrypt-account-key
+  #       solvers:
+  #         - http01:
+  #             ingress:
+  #               class: nginx
+
+# -- Configure cert-manager ClusterIssuers for the chart here.
+# [[ref]](https://cert-manager.io/docs/configuration/)
+# @default -- See below
+certificateClusterIssuers:
+  {}
+  # main:
+  #   # -- Enables or disables the ClusterIssuer. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this ClusterIssuer.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- ClusterIssuer spec. Helm templates can be used.
+  #   spec:
+  #     acme:
+  #       server: https://acme-v02.api.letsencrypt.org/directory
+  #       email: admin@example.com
+  #       privateKeySecretRef:
+  #         name: letsencrypt-account-key
+  #       solvers:
+  #         - http01:
+  #             ingress:
+  #               class: nginx
+
+# -- Configure Istio VirtualServices for the chart here.
+# [[ref]](https://istio.io/latest/docs/reference/config/networking/virtual-service/)
+# @default -- See below
+istioVirtualServices:
+  {}
+  # main:
+  #   # -- Enables or disables the VirtualService. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this VirtualService.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- VirtualService spec. Helm templates can be used.
+  #   spec:
+  #     hosts:
+  #       - myapp.example.com
+  #     gateways:
+  #       - istio-system/ingressgateway
+  #     http:
+  #       - match:
+  #           - uri:
+  #               prefix: /
+  #         route:
+  #           - destination:
+  #               host: "{{ .Release.Name }}"
+  #               port:
+  #                 number: 80
+
+# -- Configure Istio Gateways for the chart here.
+# [[ref]](https://istio.io/latest/docs/reference/config/networking/gateway/)
+# @default -- See below
+istioGateways:
+  {}
+  # main:
+  #   # -- Enables or disables the Gateway. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this Gateway.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- Gateway spec. Helm templates can be used.
+  #   spec:
+  #     selector:
+  #       istio: ingressgateway
+  #     servers:
+  #       - hosts:
+  #           - myapp.example.com
+  #         port:
+  #           name: https
+  #           number: 443
+  #           protocol: HTTPS
+  #         tls:
+  #           credentialName: myapp-tls
+  #           mode: SIMPLE
+
+# -- Configure Istio AuthorizationPolicies for the chart here.
+# [[ref]](https://istio.io/latest/docs/reference/config/security/authorization-policy/)
+# @default -- See below
+istioAuthorizationPolicies:
+  {}
+  # main:
+  #   # -- Enables or disables the AuthorizationPolicy. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this AuthorizationPolicy.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- AuthorizationPolicy spec. Helm templates can be used.
+  #   spec:
+  #     selector:
+  #       matchLabels:
+  #         app.kubernetes.io/name: "{{ .Release.Name }}"
+  #     action: ALLOW
+  #     rules:
+  #       - to:
+  #           - operation:
+  #               paths: ["/api/*"]
+
+# -- Configure Istio DestinationRules for the chart here.
+# [[ref]](https://istio.io/latest/docs/reference/config/networking/destination-rule/)
+# @default -- See below
+istioDestinationRules:
+  {}
+  # main:
+  #   # -- Enables or disables the DestinationRule. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this DestinationRule.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- DestinationRule spec. Helm templates can be used.
+  #   spec:
+  #     host: "{{ .Release.Name }}"
+  #     trafficPolicy:
+  #       tls:
+  #         mode: ISTIO_MUTUAL
+
+# -- Configure Istio ServiceEntries for the chart here.
+# [[ref]](https://istio.io/latest/docs/reference/config/networking/service-entry/)
+# @default -- See below
+istioServiceEntries:
+  {}
+  # main:
+  #   # -- Enables or disables the ServiceEntry. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this ServiceEntry.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- ServiceEntry spec. Helm templates can be used.
+  #   spec:
+  #     hosts:
+  #       - external-api.example.com
+  #     location: MESH_EXTERNAL
+  #     ports:
+  #       - number: 443
+  #         name: https
+  #         protocol: HTTPS
+  #     resolution: DNS
+
+# -- Configure Istio PeerAuthentications for the chart here.
+# [[ref]](https://istio.io/latest/docs/reference/config/security/peer_authentication/)
+# @default -- See below
+istioPeerAuthentications:
+  {}
+  # main:
+  #   # -- Enables or disables the PeerAuthentication. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this PeerAuthentication.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- PeerAuthentication spec. Helm templates can be used.
+  #   spec:
+  #     mtls:
+  #       mode: STRICT
+
+# -- Configure Istio RequestAuthentications for the chart here.
+# [[ref]](https://istio.io/latest/docs/reference/config/security/request_authentication/)
+# @default -- See below
+istioRequestAuthentications:
+  {}
+  # main:
+  #   # -- Enables or disables the RequestAuthentication. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this RequestAuthentication.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- RequestAuthentication spec. Helm templates can be used.
+  #   spec:
+  #     jwtRules:
+  #       - issuer: https://accounts.google.com
+  #         jwksUri: https://www.googleapis.com/oauth2/v3/certs
+
+# -- Configure Istio Sidecars for the chart here.
+# [[ref]](https://istio.io/latest/docs/reference/config/networking/sidecar/)
+# @default -- See below
+istioSidecars:
+  {}
+  # main:
+  #   # -- Enables or disables the Sidecar. Defaults to true
+  #   enabled: true
+  #   # -- Override the name suffix that is used for this Sidecar.
+  #   nameOverride: ""
+  #   # -- Provide additional annotations which may be required.
+  #   annotations: {}
+  #   # -- Provide additional labels which may be required.
+  #   labels: {}
+  #   # -- Sidecar spec. Helm templates can be used.
+  #   spec:
+  #     egress:
+  #       - hosts:
+  #           - "./*"
+  #           - "istio-system/*"
+
 # -- Configure any unsupported raw resources here.
 # @default -- See below
 rawResources:
