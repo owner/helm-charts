@@ -1,0 +1,48 @@
+images:
+  postgres: postgres:17
+  temporal: temporalio/auto-setup:1.27.2
+  temporalUi: temporalio/ui:2.34.0
+
+storage:
+  className: gp3-coder
+  size: 32Gi
+
+scheduling:
+  nodeSelector:
+    owner.com/node-arch: arm
+    workload: coder
+  tolerations:
+    - key: workload
+      operator: Equal
+      value: coder
+      effect: NoSchedule
+
+forgePostgres:
+  database: owner_forge_db
+  user: myuser
+  password: mypassword
+
+temporalPostgres:
+  database: temporal
+  user: temporal
+  password: temporal
+
+resources:
+  postgres:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  temporal:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  temporalUi:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi

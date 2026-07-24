@@ -1,0 +1,7 @@
+apiVersion: v2
+name: ownerforge-infra
+description: Namespace-local PostgreSQL and Temporal dependencies for Owner Forge development
+type: application
+version: 0.1.0
+appVersion: 1.27.2
+kubeVersion: ">=1.28.0-0"
