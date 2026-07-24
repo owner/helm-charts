@@ -1,0 +1,222 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "ownerforge-infra.fullname" . }}-temporal-postgres
+  labels:
+    {{- include "ownerforge-infra.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  POSTGRES_DB: {{ .Values.temporalPostgres.database | quote }}
+  POSTGRES_USER: {{ .Values.temporalPostgres.user | quote }}
+  POSTGRES_PASSWORD: {{ .Values.temporalPostgres.password | quote }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ownerforge-infra.fullname" . }}-temporal-postgres
+  labels:
+    {{- include "ownerforge-infra.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.storage.className | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.size | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ownerforge-infra.fullname" . }}-temporal-postgres
+  labels:
+    {{- include "ownerforge-infra.labels" . | nindent 4 }}
+    app.kubernetes.io/component: temporal-postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "ownerforge-infra.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: temporal-postgres
+  template:
+    metadata:
+      labels:
+        {{- include "ownerforge-infra.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: temporal-postgres
+    spec:
+      {{- include "ownerforge-infra.scheduling" . | nindent 6 }}
+      containers:
+        - name: postgres
+          image: {{ .Values.images.postgres | quote }}
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envFrom:
+            - secretRef:
+                name: {{ include "ownerforge-infra.fullname" . }}-temporal-postgres
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.temporalPostgres.user | quote }}, "-d", {{ .Values.temporalPostgres.database | quote }}]
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.temporalPostgres.user | quote }}, "-d", {{ .Values.temporalPostgres.database | quote }}]
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.temporalPostgres.user | quote }}, "-d", {{ .Values.temporalPostgres.database | quote }}]
+          resources:
+            {{- toYaml .Values.resources.postgres | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "ownerforge-infra.fullname" . }}-temporal-postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ownerforge-infra.fullname" . }}-temporal-postgres
+  labels:
+    {{- include "ownerforge-infra.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "ownerforge-infra.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: temporal-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ownerforge-infra.fullname" . }}-temporal
+  labels:
+    {{- include "ownerforge-infra.labels" . | nindent 4 }}
+    app.kubernetes.io/component: temporal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "ownerforge-infra.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: temporal
+  template:
+    metadata:
+      labels:
+        {{- include "ownerforge-infra.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: temporal
+    spec:
+      {{- include "ownerforge-infra.scheduling" . | nindent 6 }}
+      containers:
+        - name: temporal
+          image: {{ .Values.images.temporal | quote }}
+          ports:
+            - containerPort: 7233
+              name: frontend
+          env:
+            - name: DB
+              value: postgres12
+            - name: DB_PORT
+              value: "5432"
+            - name: POSTGRES_SEEDS
+              value: {{ include "ownerforge-infra.fullname" . }}-temporal-postgres
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ownerforge-infra.fullname" . }}-temporal-postgres
+                  key: POSTGRES_USER
+            - name: POSTGRES_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ownerforge-infra.fullname" . }}-temporal-postgres
+                  key: POSTGRES_PASSWORD
+          startupProbe:
+            tcpSocket:
+              port: frontend
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: frontend
+          livenessProbe:
+            tcpSocket:
+              port: frontend
+          resources:
+            {{- toYaml .Values.resources.temporal | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ownerforge-infra.fullname" . }}-temporal
+  labels:
+    {{- include "ownerforge-infra.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "ownerforge-infra.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: temporal
+  ports:
+    - name: frontend
+      port: 7233
+      targetPort: frontend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ownerforge-infra.fullname" . }}-temporal-ui
+  labels:
+    {{- include "ownerforge-infra.labels" . | nindent 4 }}
+    app.kubernetes.io/component: temporal-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "ownerforge-infra.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: temporal-ui
+  template:
+    metadata:
+      labels:
+        {{- include "ownerforge-infra.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: temporal-ui
+    spec:
+      {{- include "ownerforge-infra.scheduling" . | nindent 6 }}
+      containers:
+        - name: temporal-ui
+          image: {{ .Values.images.temporalUi | quote }}
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: TEMPORAL_ADDRESS
+              value: {{ include "ownerforge-infra.fullname" . }}-temporal:7233
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources.temporalUi | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ownerforge-infra.fullname" . }}-temporal-ui
+  labels:
+    {{- include "ownerforge-infra.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "ownerforge-infra.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: temporal-ui
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
