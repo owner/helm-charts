@@ -2,7 +2,7 @@
 apiVersion: v2
 description: A common powered chart template. This can be useful for small projects that don't have their own chart.
 name: app-template
-version: 4.6.2
+version: 4.7.0
 kubeVersion: ">=1.28.0-0"
 maintainers:
   - name: bjw-s
@@ -15,6 +15,15 @@ sources:
   - https://github.com/owner/helm-charts
 annotations:
   artifacthub.io/changes: |-
+    - kind: added
+      description: |-
+        Set Unified Service Tagging defaults: global.labels now carries
+        tags.datadoghq.com/service derived from the release name, and
+        propagateGlobalMetadataToPods defaults to true so the labels reach the
+        pod template. This makes kubernetes_state.* metrics carry a service tag
+        instead of service:N/A. Selector labels are unaffected. Releases whose
+        Datadog service differs from their release name -- notably multi-controller
+        releases -- should override global.labels.
     - kind: changed
       description: |-
         Upgraded the common library to v4.6.3

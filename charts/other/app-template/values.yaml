@@ -1,0 +1,24 @@
+---
+# Unified Service Tagging defaults.
+#
+# kube-state-metrics describes Kubernetes objects via the API server, so the
+# Datadog Agent's container tagger never runs against it and Unified Service
+# Tagging is not applied: kubernetes_state.* metrics report service:N/A and
+# cannot be filtered or grouped per service.
+#
+# global.labels values are rendered through `tpl`, so the service name is
+# derived from the Helm release rather than hardcoded, and
+# propagateGlobalMetadataToPods puts them on the pod template as well as the
+# object metadata. Both are needed: kubernetes_state.pod.* reads pod labels,
+# kubernetes_state.deployment.* reads Deployment labels.
+#
+# Selector labels are unaffected, so this never forces a Deployment recreate.
+#
+# Override global.labels in a release's own values when its Datadog service
+# differs from its release name -- in particular any release with several
+# controllers that each need a distinct identity, since app-template
+# distinguishes controllers by app.kubernetes.io/controller, not by name.
+global:
+  propagateGlobalMetadataToPods: true
+  labels:
+    tags.datadoghq.com/service: '{{ .Release.Name }}'
