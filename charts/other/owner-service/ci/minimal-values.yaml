@@ -2,18 +2,26 @@
 # `ct install` profile: the workload path only, on bare k3s.
 #
 # A realistic values file cannot pass here - it pulls a private ECR image and
-# references a ServiceAccount that does not exist in the test cluster, so
+# names a ServiceAccount that does not exist in the test cluster, so
 # `helm install --wait` times out regardless of CRDs. This profile proves the
-# Deployment/Service/NetworkPolicy path renders and comes up; everything
-# CRD-shaped (Gateway, VirtualService, Certificate, ExternalSecret,
-# ScaledObject) and every derived env var is asserted by helm-unittest instead.
+# Deployment/Service/PDB/NetworkPolicy path renders AND comes up under the
+# platform's pod-security defaults; everything CRD-shaped (Gateway,
+# VirtualService, Certificate, ExternalSecret, ScaledObject) and every derived
+# env var is asserted by helm-unittest instead.
+#
+# The image has to tolerate those defaults: runAsNonRoot, an arbitrary UID from
+# `cluster.pod.runAsUser`, all capabilities dropped. That rules out the standard
+# nginx image, which needs root to create /var/cache/nginx and CAP_NET_BIND_SERVICE
+# to listen on 80. nginx-unprivileged keeps its temp paths under /tmp and listens
+# on 8080, so it comes up as any UID - which makes this a real test of the
+# security posture rather than a test that ignores it.
 owner: platform
 archetype: http-api
-port: 80
+port: 8080
 
 image:
-  repository: public.ecr.aws/nginx/nginx
-  tag: "1.29-alpine"
+  repository: public.ecr.aws/nginx/nginx-unprivileged
+  tag: "1.29-alpine-slim"
 
 health:
   livenessPath: /
