@@ -1,0 +1,121 @@
+{{- define "custom.helm.url" -}}
+https://owner.github.io/helm-charts/
+{{- end -}}
+
+{{ template "chart.header" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+## Requirements
+
+{{ template "chart.kubeVersionLine" . }}
+
+## Dependencies
+
+{{ template "chart.requirementsTable" . }}
+
+## What this chart is
+
+`owner-service` wraps the same [`common`](../../library/common/) library that
+[`app-template`](../app-template/) consumes, using the same extension point: a
+block of computed values merged over the user's values before the library
+renders. `app-template`'s block sets one key. This one derives a whole service.
+
+An app declares its **shape** — archetype, port, datastores, dependencies,
+workers. The chart derives the Kubernetes objects and the platform environment
+from that shape plus a cluster catalog, so an engineer does not hand-write
+`DB_HOST`, an assume-role ARN, an egress allow-list or an ExternalSecret mapping.
+
+## Configuration layers
+
+Four tiers stack, in increasing order of authority:
+
+| # | Layer | Owner | Where |
+|---|-------|-------|-------|
+| 1 | Cluster defaults | Platform | `argocd/defaults/<cluster>.yaml`, loaded as the first `valueFile` |
+| 2 | App values | App team, platform-approved | `values.yaml`, `values-<variant>.yaml`, `env.yaml`, `env-<cluster>.yaml` |
+| 3 | Chart derivation | Chart | computed from 1 + 2 — **beats** an app's `env:` |
+| 4 | `raw:` | App team, platform-reviewed | passthrough to the common library — beats everything, minus the identity exclusions |
+
+Tier 3 is not a file, so `valueFiles` order cannot express this. The merge
+happens in `templates/common.yaml`, which owns the precedence.
+
+An app cannot hand-write a key the chart derives: the reserved list in
+`templates/_validate.tpl` fails the render instead of letting the derivation win
+silently. And `raw:` cannot reach identity — the ServiceAccount name, the
+ExternalSecret target, the Gateway/VirtualService/Certificate names, the UST
+labels, or `controllers:` — because a rename is delete-then-create rather than a
+restart.
+
+**Convention:** every `raw:` block carries a comment saying why it is there. A
+JSON schema cannot require YAML comments, so this is a review habit. It is also
+the input to the override tally that tells us which patterns to promote into
+first-class values.
+
+## Rendering a service locally
+
+There is no live dry-run for this: a second Argo Application rendering into the
+same namespace would collide with the running one on every derived name.
+`helm template` is the only safe pre-flip validation, which is what makes the
+render-diff load-bearing rather than nice-to-have.
+
+```bash
+# From a checkout of owner/argocd, with ARGOCD pointing at it.
+ARGOCD=~/src/argocd
+APP=apps/plg/biz-enrich-service
+
+helm template biz-enrich-service oci://ghcr.io/owner/helm/owner-service \
+  --version 0.1.0 \
+  --namespace enrichment \
+  -f "$ARGOCD/defaults/dev.yaml" \
+  -f "$ARGOCD/$APP/image-pin.yaml" \
+  -f "$ARGOCD/$APP/values.yaml" \
+  -f "$ARGOCD/$APP/values-dev.yaml" \
+  -f "$ARGOCD/$APP/env.yaml" \
+  -f "$ARGOCD/$APP/env-dev.yaml"
+```
+
+The `-f` order must match the ApplicationSet's `valueFiles` exactly. Cluster
+defaults first, then the image pin, then the app's values, then its environment.
+
+The TLS companion Application is the same command with the `tls-<cluster>`
+variant overlay and the ingress-gateway namespace:
+
+```bash
+helm template biz-enrich-service oci://ghcr.io/owner/helm/owner-service \
+  --version 0.1.0 --namespace istio-ingress \
+  -f "$ARGOCD/defaults/dev.yaml" \
+  -f "$ARGOCD/$APP/image-pin.yaml" \
+  -f "$ARGOCD/$APP/values.yaml" \
+  -f "$ARGOCD/$APP/values-tls-dev.yaml" \
+  -f "$ARGOCD/$APP/env.yaml" \
+  -f "$ARGOCD/$APP/env-dev.yaml"
+```
+
+## Testing
+
+```bash
+# Unit tests: every derived value, name, probe and validator.
+helm plugin install https://github.com/helm-unittest/helm-unittest.git
+helm unittest -f 'unittests/**/*_test.yaml' .
+
+# Install profile: the workload path on bare k3s, no CRDs.
+ct install --config ../../../.ci/ct/ct.yaml --charts .
+```
+
+Everything CRD-shaped — Gateway, VirtualService, Certificate, ExternalSecret,
+ScaledObject — is asserted by `helm unittest`, which suits a chart whose job is
+computing values. `ci/minimal-values.yaml` exists because a realistic values
+file cannot pass `ct install`: it pulls a private ECR image and names a
+ServiceAccount that does not exist in the test cluster, so `helm install --wait`
+times out regardless of CRDs.
+
+## Configuration reference
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}

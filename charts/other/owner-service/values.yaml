@@ -1,0 +1,264 @@
+---
+# owner-service chart defaults.
+#
+# Three tiers stack, in this order of increasing authority:
+#
+#   1. cluster defaults   argocd/defaults/<cluster>.yaml, platform-owned, loaded
+#                         as the FIRST valueFile. Populates `cluster:` below.
+#   2. app values         values.yaml / values-<variant>.yaml (platform-approved)
+#                         and env.yaml / env-<cluster>.yaml (app-team-owned).
+#   3. chart derivation   computed from tiers 1+2. BEATS `env:` - an app cannot
+#                         hand-write a key the chart derives; see _validate.tpl.
+#   4. raw:               direct passthrough to the bjw-s common library. Beats
+#                         everything, minus the identity exclusions.
+#
+# Precedence is enforced inside templates/common.yaml, not by valueFiles order,
+# because tier 3 is not a file.
+
+# ---------------------------------------------------------------------------
+# Identity - required
+# ---------------------------------------------------------------------------
+
+# Owning team slug. Fans out to Kubernetes labels, Datadog tags, the
+# ApplicationSet label and CODEOWNERS, so review and escalation routing cannot
+# drift apart. Enum'd in values.schema.json.
+owner: ~
+
+# Which resources render. Add an archetype when it changes *which* resources
+# render; add a value when it changes *how many*.
+archetype: http-api
+
+# Datadog / UST service name. Defaults to the release name. biz-enrich-service
+# is an example of why this is not always the release name: it reports as
+# `biz-enrich`.
+serviceName: ~
+
+# `source` in the Datadog log-collection annotation.
+logSource: nodejs
+
+# Access-role suffix. Fans out to the ServiceAccount name (`<release>-<role>`),
+# both assume-role ARNs (`<release>-<role>-rds-connect`,
+# `<release>-<role>-dynamodb`) and the database login. Overridable per-database
+# via `database.role`.
+role: rw
+
+# ---------------------------------------------------------------------------
+# Workload
+# ---------------------------------------------------------------------------
+
+# Container port the HTTP archetype listens on.
+port: ~
+
+replicas: 1
+
+image:
+  # Defaults to `<cluster.imageRegistry>/<release>`.
+  repository: ~
+  # Written by CI into image-pin.yaml.
+  tag: ~
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+health:
+  # A shallow endpoint that does NOT check dependencies. Set to `~` when the app
+  # has no such endpoint and liveness falls back to a TCP check on `port` -
+  # wiring liveness to a dependency-checking endpoint turns an upstream outage
+  # into a fleet-wide restart loop.
+  livenessPath: /healthz
+  readinessPath: /readyz
+  # Divided by the 5s startup period to get failureThreshold.
+  startupBudgetSeconds: 150
+
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+
+ingress:
+  # internal -> Istio Gateway + VirtualService, plus a cert-manager Certificate
+  #             rendered by the companion Application (see tlsCompanion).
+  # none     -> no ingress objects.
+  scope: none
+  # Defaults to `<release>.<cluster.ingress.<scope>.domain>`.
+  host: ~
+
+# Render ONLY the cert-manager Certificate, into the namespace where the shared
+# ingress gateway pod reads its TLS secret. Set by the `tls-<cluster>` variant
+# overlay; a Certificate cannot live in the app namespace, and cross-namespace
+# resources in one Application are avoided.
+tlsCompanion: false
+
+# ---------------------------------------------------------------------------
+# Datastores and dependencies - drive derived env, egress and IAM
+# ---------------------------------------------------------------------------
+
+database:
+  # Key into `cluster.databases`. Render fails if the cluster does not know it -
+  # a new cluster gets a catalog entry rather than a host override, which
+  # preserves the render-time failure as a pre-deploy guardrail.
+  cluster: ~
+  name: ~
+  # Defaults to the top-level `role`.
+  role: ~
+
+cache:
+  enabled: false
+  # Replication-group name. NOT derivable from the release name
+  # (biz-enrich-service -> biz-enrich-cache, scout -> scout-cache), so it stays
+  # explicit. Composed as master.<name>.<cluster.cache.hash>.<regionShort>.cache.amazonaws.com
+  name: ~
+  # Acknowledged weak derivation: escape hatch for a shared cluster or a
+  # `replica.` reader endpoint. Wins over the composed host.
+  endpoint: ~
+
+temporal:
+  namespace: ~
+  taskQueue: default-task-queue
+  # Register the Temporal client on the API container.
+  client: false
+
+dependencies:
+  # In-cluster services, keyed into `cluster.services`. Each one yields a
+  # `<NAME>_URL` env var and an egress rule.
+  services: []
+  aws:
+    # `{}` enables; the assume-role ARN derives from the release name.
+    dynamodb: ~
+    opensearch: ~
+    #   domain: brizo-search    # keyed into cluster.opensearch.domains
+    snowflake: ~
+
+# ---------------------------------------------------------------------------
+# Workers - a map of N, each with independent resources and autoscaling
+# ---------------------------------------------------------------------------
+
+workers: {}
+#   worker:
+#     runtime: temporal-worker
+#     replicas: 1
+#     resources: {}
+#     autoscaling:
+#       queue: default-task-queue
+#       backlogPerReplica: 10
+#       minReplicas: 1
+#       maxReplicas: 20
+
+# ---------------------------------------------------------------------------
+# App-team surface (env.yaml / env-<cluster>.yaml)
+# ---------------------------------------------------------------------------
+
+env:
+  # Every container.
+  shared: {}
+  # The API container only.
+  main: {}
+  # Per-worker, keyed by the `workers:` identifier.
+  workers: {}
+
+# Key NAMES only. Values live in Secrets Manager and never appear in git. Pulled
+# by an ExternalSecret with an explicit per-key mapping (not `dataFrom extract`,
+# which would import keys the app must not see) into `<release>-secret`.
+secretKeys: []
+
+# ---------------------------------------------------------------------------
+# Escape hatch - tier 4
+# ---------------------------------------------------------------------------
+
+# Direct passthrough to the bjw-s common library, merged last. Validated against
+# the common schema. Identity fields are excluded; see _validate.tpl.
+#
+# CONVENTION: every raw block carries a comment saying why it is here. A JSON
+# schema cannot require YAML comments, so this is a review habit - and the input
+# to the override tally that tells us which patterns to promote.
+raw: {}
+
+# ---------------------------------------------------------------------------
+# Cluster facts - platform-owned, from argocd/defaults/<cluster>.yaml
+# ---------------------------------------------------------------------------
+
+cluster:
+  name: ~
+  # DD_ENV.
+  env: ~
+  region: us-east-1
+  regionShort: use1
+  imageRegistry: ~
+  # Account holding the cross-account roles the workload assumes.
+  crossAccount: ~
+  # This cluster's VPC. Scopes cache egress.
+  vpcCidr: ~
+  # The peered ECS VPC holding Postgres and the Temporal frontend.
+  peeredVpcCidr: ~
+  podIdentityCidr: 169.254.170.23/32
+
+  secrets:
+    pathPrefix: eks
+    storeKind: ClusterSecretStore
+    storeName: aws-secrets-manager
+
+  # Catalog, not overrides. An unknown key fails the render.
+  databases: {}
+  #   pg-main:
+  #     host: ...
+  #     readHost: ...
+  #     port: 5432
+  #     account: "000000000000"
+
+  cache:
+    # Account-region hash in the ElastiCache endpoint. Stable per account+region.
+    hash: ~
+    port: 6379
+    tls: true
+
+  temporal:
+    host: ~
+    # CloudWatch `Cluster` dimension for the queue-backlog metric.
+    cluster: ~
+    tls: true
+    retentionDays: 14
+    metricsPort: 9465
+
+  opensearch:
+    domains: {}
+
+  services: {}
+  #   auth-service:
+  #     namespace: auth
+  #     url: http://auth-service.auth.svc.cluster.local
+  #     servicePort: 80
+  #     podPort: 3200
+
+  istio:
+    # HBONE. Required in egress rules to in-cluster services.
+    mtlsPort: 15008
+
+  ingress:
+    internal: {}
+    #   domain: dev.ownr.dev
+    #   selector: { istio: ingressgateway, access: private }
+    #   target: <internal NLB hostname>     # public+private gateways share the
+    #                                       # istio= label, so external-dns
+    #                                       # emits no record without this
+    #   visibility: public
+    #   issuer: letsencrypt-prod
+
+  datadog:
+    apmPort: 8126
+    statsdPort: 8125
+
+  keda:
+    # Role the KEDA operator assumes to read CloudWatch.
+    triggerAuthRoleArn: ~
+
+  pod:
+    runAsUser: 1001
+    runAsGroup: 1001
+    terminationGracePeriodSeconds: 30
+
+# Present so the common library's `get .Values.global` lookups resolve.
+global: {}

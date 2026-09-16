@@ -1,0 +1,44 @@
+---
+# Stand-in for argocd/defaults/<cluster>.yaml. Kept in the chart so the tests
+# are self-contained; the real file lives in owner/argocd and is platform-owned.
+cluster:
+  name: dev
+  env: dev
+  region: us-east-1
+  regionShort: use1
+  imageRegistry: 000000000000.dkr.ecr.us-east-1.amazonaws.com
+  crossAccount: "000000000000"
+  vpcCidr: 10.130.0.0/16
+  peeredVpcCidr: 172.31.0.0/16
+  databases:
+    pg-main:
+      host: pg-main-dev.cluster-aaaa.us-east-1.rds.amazonaws.com
+      readHost: pg-main-dev.cluster-ro-aaaa.us-east-1.rds.amazonaws.com
+      port: 5432
+      account: "000000000000"
+  cache:
+    hash: io2gn3
+  temporal:
+    host: temporal-frontend.dev.owner.engineering:7233
+    cluster: olympus-dev
+  opensearch:
+    domains:
+      brizo-search:
+        endpoint: https://vpc-brizo-search-zzzz.us-east-1.es.amazonaws.com
+  services:
+    auth-service:
+      namespace: auth
+      url: http://auth-service.auth.svc.cluster.local
+      servicePort: 80
+      podPort: 3200
+  ingress:
+    internal:
+      domain: dev.ownr.dev
+      selector:
+        istio: ingressgateway
+        access: private
+      target: k8s-istioing-example.elb.us-east-1.amazonaws.com
+      visibility: public
+      issuer: letsencrypt-prod
+  keda:
+    triggerAuthRoleArn: arn:aws:iam::000000000000:role/keda-cloudwatch-read

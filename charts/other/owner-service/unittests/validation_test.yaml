@@ -1,0 +1,93 @@
+---
+suite: the chart fails the render rather than deploying something wrong
+templates:
+  - templates/common.yaml
+release:
+  name: biz-enrich-service
+  namespace: enrichment
+values:
+  - fixtures/cluster.yaml
+  - fixtures/app.yaml
+tests:
+  # A render-time `fail` is the only pre-deploy guardrail in this design. Every
+  # case below would otherwise surface as a runtime AccessDenied, a silent
+  # egress timeout, or a value that lies about what the pod sees.
+
+  - it: rejects an app-authored env key that the chart derives
+    set:
+      env.shared.DB_HOST: my-own-database.example.com
+    asserts:
+      - failedTemplate:
+          errorMessage: "env.DB_HOST is reserved: the chart derives it. Change the value that drives it instead, or use `raw:` with a comment saying why."
+
+  - it: rejects a reserved key hidden in a per-worker env block
+    set:
+      env.workers.worker.TEMPORAL_HOST: somewhere-else:7233
+    asserts:
+      - failedTemplate:
+          errorPattern: "env.TEMPORAL_HOST is reserved"
+
+  - it: rejects a database cluster the cluster catalog does not know
+    set:
+      database.cluster: pg-somewhere-else
+    asserts:
+      - failedTemplate:
+          errorPattern: 'database.cluster "pg-somewhere-else" is not in this cluster.s catalog'
+
+  - it: rejects an in-cluster dependency that has no catalog entry
+    set:
+      dependencies.services: [mystery-service]
+    asserts:
+      # Without an entry the chart cannot derive the URL or the egress rule, and
+      # egress fails silently in a default-deny namespace.
+      - failedTemplate:
+          errorPattern: "egress fails SILENTLY"
+
+  - it: rejects an OpenSearch domain that has no catalog entry
+    set:
+      dependencies.aws.opensearch.domain: some-other-domain
+    asserts:
+      - failedTemplate:
+          errorPattern: "it cannot be derived"
+
+  - it: rejects queue autoscaling without a Temporal namespace
+    set:
+      temporal.namespace: ~
+    asserts:
+      - failedTemplate:
+          errorPattern: "autoscaling.queue is set but temporal.namespace is not"
+
+  - it: rejects an http-api with no port
+    set:
+      port: ~
+    asserts:
+      - failedTemplate:
+          errorMessage: "port is required for archetype http-api."
+
+  - it: "rejects raw: setting controllers"
+    set:
+      raw.controllers.main.replicas: 4
+    asserts:
+      - failedTemplate:
+          errorPattern: "raw: may not set `controllers`"
+
+  - it: "rejects raw: renaming a resource"
+    set:
+      raw.rawResources.extra.apiVersion: v1
+      raw.rawResources.extra.kind: ConfigMap
+      raw.rawResources.extra.spec.metadata.name: something-else
+    asserts:
+      # A rename is delete-then-create, not a restart.
+      - failedTemplate:
+          errorPattern: "may not set metadata.name"
+
+  - it: "rejects raw: renaming the ServiceAccount"
+    set:
+      raw.serviceAccount.main.name: some-other-sa
+    asserts:
+      # The JSON schema gets here first - the common library's serviceAccount
+      # object has no `name` field at all - so the template validator behind it
+      # is belt and braces. Asserting the schema message keeps the test honest
+      # about which layer actually blocks this.
+      - failedTemplate:
+          errorPattern: "additional properties 'name' not allowed"

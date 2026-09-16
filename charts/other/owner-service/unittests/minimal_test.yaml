@@ -1,0 +1,62 @@
+---
+suite: a service with no datastores renders the workload path only
+templates:
+  - templates/common.yaml
+release:
+  name: hello
+  namespace: apps
+values:
+  - fixtures/cluster.yaml
+tests:
+  - it: renders only the workload objects
+    set:
+      owner: platform
+      archetype: http-api
+      port: 8080
+      image.tag: abc123
+    asserts:
+      # Deployment, Service, PodDisruptionBudget, NetworkPolicy. No CRDs, which
+      # is what lets `ct install` prove the workload path on bare k3s.
+      - hasDocuments: {count: 4}
+
+  - it: leaves the ServiceAccount to the namespace default when nothing needs AWS identity
+    set:
+      owner: platform
+      archetype: http-api
+      port: 8080
+      image.tag: abc123
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: default
+        documentSelector: {path: kind, value: Deployment}
+
+  - it: still renders the egress allow-list, because the namespace is default-deny
+    set:
+      owner: platform
+      archetype: http-api
+      port: 8080
+      image.tag: abc123
+    asserts:
+      - equal: {path: metadata.name, value: hello-egress}
+        documentSelector: {path: kind, value: NetworkPolicy}
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - ipBlock: {cidr: 0.0.0.0/0}
+            ports:
+              - {port: 443, protocol: TCP}
+        documentSelector: {path: kind, value: NetworkPolicy}
+
+  - it: derives the image repository from the cluster registry when not given
+    set:
+      owner: platform
+      archetype: http-api
+      port: 8080
+      image.tag: abc123
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: 000000000000.dkr.ecr.us-east-1.amazonaws.com/hello:abc123
+        documentSelector: {path: kind, value: Deployment}

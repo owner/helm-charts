@@ -1,0 +1,19 @@
+---
+suite: "raw: cannot rewrite the identity the chart derives"
+templates:
+  - templates/common.yaml
+release:
+  name: biz-enrich-service
+  namespace: enrichment
+values:
+  - fixtures/cluster.yaml
+  - fixtures/app.yaml
+  - fixtures/raw-ust-label.yaml
+tests:
+  - it: rejects a UST label override
+    asserts:
+      # `owner` fans out to the Kubernetes labels, the Datadog tags, the
+      # ApplicationSet label and CODEOWNERS. Letting an app rewrite one of them
+      # is how review routing and escalation routing drift apart.
+      - failedTemplate:
+          errorPattern: "may not set UST labels"

@@ -1,0 +1,89 @@
+---
+suite: probe defaults follow what the fleet already hand-writes
+templates:
+  - templates/common.yaml
+release:
+  name: biz-enrich-service
+  namespace: enrichment
+values:
+  - fixtures/cluster.yaml
+  - fixtures/app.yaml
+tests:
+  - it: falls back to a TCP liveness check when the app has no shallow endpoint
+    asserts:
+      # biz-enrich only exposes /sales/v1/health, which checks DB + Brizo +
+      # DynamoDB + Redis. Wiring liveness to that turns a Brizo outage into a
+      # fleet-wide restart loop, so a null livenessPath means TCP.
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: 3200
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: uses an HTTP liveness check when the app does expose a shallow endpoint
+    set:
+      health.livenessPath: /healthz
+    asserts:
+      # Eight of the ten migrated services already hand-write exactly this, so
+      # most services write no health: block at all.
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: turns the startup budget into a failureThreshold against a 5s period
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.periodSeconds
+          value: 5
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 30
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: scales the startup budget for a slow starter
+    set:
+      health.startupBudgetSeconds: 300
+    asserts:
+      # owner-keycloak needs roughly this much for Liquibase.
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 60
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: gives the worker a liveness check on its metrics port and no readiness at all
+    asserts:
+      # There is no HTTP server in the worker runtime, and the worker is not a
+      # Service target. The Temporal metrics port is bound only once the worker
+      # registers, which makes it a real liveness signal.
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: 9465
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker
+      - isNull:
+          path: spec.template.spec.containers[0].startupProbe
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker

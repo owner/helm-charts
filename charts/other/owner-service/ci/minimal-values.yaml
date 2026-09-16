@@ -1,0 +1,33 @@
+---
+# `ct install` profile: the workload path only, on bare k3s.
+#
+# A realistic values file cannot pass here - it pulls a private ECR image and
+# references a ServiceAccount that does not exist in the test cluster, so
+# `helm install --wait` times out regardless of CRDs. This profile proves the
+# Deployment/Service/NetworkPolicy path renders and comes up; everything
+# CRD-shaped (Gateway, VirtualService, Certificate, ExternalSecret,
+# ScaledObject) and every derived env var is asserted by helm-unittest instead.
+owner: platform
+archetype: http-api
+port: 80
+
+image:
+  repository: public.ecr.aws/nginx/nginx
+  tag: "1.29-alpine"
+
+health:
+  livenessPath: /
+  readinessPath: /
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+
+cluster:
+  name: ci
+  env: ci
+  vpcCidr: 10.0.0.0/8
+  crossAccount: "000000000000"

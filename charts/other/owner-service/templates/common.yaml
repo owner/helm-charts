@@ -1,0 +1,39 @@
+---
+{{- include "bjw-s.common.loader.init" . }}
+
+{{/* Fail the render before anything is computed. */}}
+{{- include "owner-service.validate" . }}
+
+{{/*
+Precedence, lowest authority first:
+
+  1. cluster defaults   already merged into .Values by the first valueFile
+  2. app values         values*.yaml and env*.yaml
+  3. chart derivation   computed below, BEATS the app's `env:`
+  4. raw:               passthrough to the common library, beats everything
+
+Tier 3 is not a file, so `valueFiles` order cannot express this and the merge
+has to happen here.
+*/}}
+{{- $ownKeys := list
+  "owner" "archetype" "serviceName" "logSource" "role"
+  "port" "replicas" "image" "resources" "health"
+  "ingress" "tlsCompanion"
+  "database" "cache" "temporal" "dependencies"
+  "workers" "env" "secretKeys" "raw" "cluster"
+}}
+{{- $derived := include "owner-service.derivedValues" . | fromYaml }}
+{{- $merged := mustMergeOverwrite $derived (deepCopy (.Values.raw | default dict)) }}
+
+{{/*
+`ingress:` is the reason the chart's own keys are stripped rather than left in
+place: ours is `{scope, host}`, the common library's is a map of Ingress objects.
+Leaving them would make the library try to render an Ingress called `scope`.
+*/}}
+{{- $base := deepCopy .Values }}
+{{- range $k := $ownKeys }}{{- $base = omit $base $k }}{{- end }}
+{{- $final := mustMergeOverwrite $base $merged }}
+{{- $_ := set . "Values" $final }}
+
+{{/* Render */}}
+{{ include "bjw-s.common.loader.generate" . }}

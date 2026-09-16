@@ -1,0 +1,52 @@
+---
+suite: "tier 4 beats derivation, and the TLS companion renders nothing else"
+templates:
+  - templates/common.yaml
+release:
+  name: biz-enrich-service
+  namespace: enrichment
+values:
+  - fixtures/cluster.yaml
+  - fixtures/app.yaml
+tests:
+  - it: "lets raw: win over a chart-derived value"
+    set:
+      raw.service.main.type: NodePort
+    asserts:
+      # The chart derives ClusterIP. `type` is not on the exclusion list, so
+      # raw: wins - the escape hatch working as designed. The per-block comment
+      # convention is what turns this into a promotion candidate later.
+      - equal:
+          path: spec.type
+          value: NodePort
+        documentSelector: {path: kind, value: Service}
+
+  - it: "lets raw: add something the chart has no abstraction for"
+    set:
+      raw.persistence.tmp.type: emptyDir
+      raw.persistence.tmp.globalMounts[0].path: /tmp/render
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir: {}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: renders only the Certificate in TLS companion mode
+    set:
+      tlsCompanion: true
+    asserts:
+      # A second Application rendering the workload into istio-ingress would
+      # collide with the running one on every derived name - same Gateway host,
+      # same ExternalSecret target, same NetworkPolicy.
+      - hasDocuments: {count: 1}
+      - isKind: {of: Certificate}
+      - equal:
+          path: spec.secretName
+          value: biz-enrich-service-internal-tls
+      - equal:
+          path: spec.dnsNames[0]
+          value: biz-enrich-service.dev.ownr.dev

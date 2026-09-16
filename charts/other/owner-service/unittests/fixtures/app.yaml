@@ -1,0 +1,50 @@
+---
+# A service exercising every derivation at once: HTTP API, internal ingress,
+# database, cache, Temporal client, one autoscaled worker, an in-cluster
+# dependency and three AWS dependencies.
+owner: plg
+archetype: http-api
+serviceName: biz-enrich
+port: 3200
+image:
+  tag: deadbeef
+ingress:
+  scope: internal
+database:
+  cluster: pg-main
+  name: biz_enrich_service
+cache:
+  enabled: true
+  name: biz-enrich-cache
+temporal:
+  namespace: biz-enrich-service
+  taskQueue: default-task-queue
+  client: true
+dependencies:
+  services: [auth-service]
+  aws:
+    dynamodb: {}
+    opensearch:
+      domain: brizo-search
+    snowflake: {}
+health:
+  livenessPath: ~
+  readinessPath: /sales/v1/health
+workers:
+  worker:
+    runtime: temporal-worker
+    autoscaling:
+      queue: default-task-queue
+      backlogPerReplica: 10
+      maxReplicas: 20
+env:
+  shared:
+    LOG_LEVEL: info
+  main:
+    NODE_OPTIONS: "--max-old-space-size=920"
+  workers:
+    worker:
+      NODE_OPTIONS: "--max-old-space-size=1536"
+secretKeys:
+  - BRIZO_API_KEY
+  - UNLEASH_KEY

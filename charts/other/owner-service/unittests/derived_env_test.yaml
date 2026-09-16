@@ -1,0 +1,175 @@
+---
+suite: platform environment is derived, not hand-written
+templates:
+  - templates/common.yaml
+release:
+  name: biz-enrich-service
+  namespace: enrichment
+values:
+  - fixtures/cluster.yaml
+  - fixtures/app.yaml
+tests:
+  - it: derives the database endpoints and the IAM login from database.cluster
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: DB_HOST, value: pg-main-dev.cluster-aaaa.us-east-1.rds.amazonaws.com}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: DB_READ_HOST, value: pg-main-dev.cluster-ro-aaaa.us-east-1.rds.amazonaws.com}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: DB_USER, value: biz_enrich_service_rw}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: USE_IAM_AUTH, value: "true"}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: composes both assume-role ARNs from the release name, the role and the cluster account
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RDS_IAM_ASSUME_ROLE_ARN
+            value: arn:aws:iam::000000000000:role/biz-enrich-service-rw-rds-connect
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DYNAMODB_ASSUME_ROLE_ARN
+            value: arn:aws:iam::000000000000:role/biz-enrich-service-rw-dynamodb
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: composes REDIS_HOST from cache.name plus the cluster hash and region
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_HOST
+            value: master.biz-enrich-cache.io2gn3.use1.cache.amazonaws.com
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: lets cache.endpoint win over the composed host
+    set:
+      cache.endpoint: replica.shared-cache.io2gn3.use1.cache.amazonaws.com
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_HOST
+            value: replica.shared-cache.io2gn3.use1.cache.amazonaws.com
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: resolves an in-cluster dependency to its ClusterIP URL, not the ingress hostname
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: AUTH_SERVICE_URL, value: http://auth-service.auth.svc.cluster.local}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: looks the OpenSearch VPC endpoint up in the catalog rather than deriving it
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OPENSEARCH_ENDPOINT
+            value: https://vpc-brizo-search-zzzz.us-east-1.es.amazonaws.com
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: registers the worker on the worker controller and only there
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: TEMPORAL_REGISTER_WORKER, value: "false"}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: TEMPORAL_REGISTER_WORKER, value: "true"}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: APPLICATION_RUNTIME, value: temporal-worker}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker
+
+  - it: gives each controller its own DD_SERVICE and UST labels
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: DD_SERVICE, value: biz-enrich}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: DD_SERVICE, value: biz-enrich-worker}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker
+      - equal:
+          path: metadata.labels["tags.datadoghq.com/service"]
+          value: biz-enrich-worker
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: DD_VERSION, value: deadbeef}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+
+  - it: merges env.shared into every container and env.main into the API only
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOG_LEVEL, value: info}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOG_LEVEL, value: info}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: NODE_OPTIONS, value: "--max-old-space-size=920"}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: NODE_OPTIONS, value: "--max-old-space-size=1536"}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker

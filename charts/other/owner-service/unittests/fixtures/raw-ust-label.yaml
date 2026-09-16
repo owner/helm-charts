@@ -1,0 +1,8 @@
+---
+# An app trying to rewrite its own Datadog service name through the escape
+# hatch. In a fixture rather than a `set:` because helm-unittest's --set path
+# parser cannot address a key containing dots.
+raw:
+  global:
+    labels:
+      tags.datadoghq.com/service: not-biz-enrich

@@ -1,0 +1,103 @@
+---
+suite: derived names match the convention Terraform already implements
+templates:
+  - templates/common.yaml
+release:
+  name: biz-enrich-service
+  namespace: enrichment
+values:
+  - fixtures/cluster.yaml
+  - fixtures/app.yaml
+tests:
+  # These are the names the chart computes and Terraform is trusted to have
+  # created. Neither side reads the other's state, so the convention IS the
+  # cross-repo interface - which is what makes these assertions load-bearing.
+  - it: names the ServiceAccount <release>-<role>
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: biz-enrich-service-rw
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: main
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: biz-enrich-service-rw
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker
+
+  - it: names the ExternalSecret and its target <release>-secret, and derives the Secrets Manager path
+    asserts:
+      - equal: {path: metadata.name, value: biz-enrich-service-secret}
+        documentSelector: {path: kind, value: ExternalSecret}
+      - equal: {path: spec.target.name, value: biz-enrich-service-secret}
+        documentSelector: {path: kind, value: ExternalSecret}
+      - equal: {path: spec.target.creationPolicy, value: Owner}
+        documentSelector: {path: kind, value: ExternalSecret}
+      - contains:
+          path: spec.data
+          content:
+            secretKey: BRIZO_API_KEY
+            remoteRef:
+              key: eks/biz-enrich-service
+              property: BRIZO_API_KEY
+        documentSelector: {path: kind, value: ExternalSecret}
+
+  - it: maps every secret key explicitly rather than with dataFrom extract
+    asserts:
+      # A wildcard import would pull TEMPORAL_REGISTER_WORKER=true out of the
+      # live secret and start the worker on the API pod.
+      - isNull: {path: spec.dataFrom}
+        documentSelector: {path: kind, value: ExternalSecret}
+      - lengthEqual: {path: spec.data, count: 2}
+        documentSelector: {path: kind, value: ExternalSecret}
+
+  - it: names the Gateway, VirtualService and TLS secret from the release and the ingress scope
+    asserts:
+      - equal: {path: metadata.name, value: biz-enrich-service-internal}
+        documentSelector: {path: kind, value: Gateway}
+      - equal: {path: metadata.name, value: biz-enrich-service-internal}
+        documentSelector: {path: kind, value: VirtualService}
+      - equal:
+          path: spec.servers[0].tls.credentialName
+          value: biz-enrich-service-internal-tls
+        documentSelector: {path: kind, value: Gateway}
+
+  - it: derives the ingress host and routes it at the in-namespace ClusterIP
+    asserts:
+      - equal:
+          path: spec.hosts[0]
+          value: biz-enrich-service.dev.ownr.dev
+        documentSelector: {path: kind, value: VirtualService}
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: biz-enrich-service.enrichment.svc.cluster.local
+        documentSelector: {path: kind, value: VirtualService}
+
+  - it: points the ScaledObject at the worker Deployment and builds the CloudWatch dimension
+    asserts:
+      - equal: {path: metadata.name, value: biz-enrich-service-worker-backlog}
+        documentSelector: {path: kind, value: ScaledObject}
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: biz-enrich-service-worker
+        documentSelector: {path: kind, value: ScaledObject}
+      - equal:
+          path: spec.triggers[0].metadata.dimensionValue
+          value: olympus-dev;biz-enrich-service;default-task-queue
+        documentSelector: {path: kind, value: ScaledObject}
+      - equal:
+          path: spec.triggers[0].authenticationRef.name
+          value: biz-enrich-worker-cloudwatch
+        documentSelector: {path: kind, value: ScaledObject}
+      - equal: {path: metadata.name, value: biz-enrich-worker-cloudwatch}
+        documentSelector: {path: kind, value: TriggerAuthentication}
+
+  - it: lets the ScaledObject own replicas rather than the Deployment
+    asserts:
+      # Argo runs selfHeal; a chart-set spec.replicas would fight KEDA's HPA.
+      - isNull: {path: spec.replicas}
+        documentSelector:
+          path: 'spec.template.metadata.labels["app.kubernetes.io/controller"]'
+          value: worker

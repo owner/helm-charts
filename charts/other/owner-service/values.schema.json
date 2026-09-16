@@ -1,0 +1,362 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$comment": "The chart's own surface only. The common library's schema is NOT applied at the root: its `ingress` is a map of Ingress objects while ours is {scope, host}, so the two contradict each other. The library's surface is reachable through `raw:`, which is $ref'd to it below - which is also the point: an app reaches the library deliberately, not by accident.",
+  "type": "object",
+  "required": [
+    "owner",
+    "archetype"
+  ],
+  "properties": {
+    "owner": {
+      "description": "Owning team. Fans out to Kubernetes labels, Datadog tags, the ApplicationSet label and CODEOWNERS, so review routing and escalation routing cannot drift apart.",
+      "$comment": "Owning team slug. INCOMPLETE - seeded from the `team:` labels in owner/argocd and the teams named in this rollout. Must be filled from the OwnerTeam catalog (31 slugs) before v0.1.0 is tagged; a checked-in list keeps the render path free of live catalog calls, at the cost of needing a deliberate PR to add a team.",
+      "type": "string",
+      "enum": [
+        "core",
+        "growth",
+        "platform",
+        "platform-engineering",
+        "plg",
+        "security"
+      ]
+    },
+    "archetype": {
+      "description": "Which resources render. Add an archetype when it changes *which* resources render; add a value when it changes *how many*.",
+      "type": "string",
+      "enum": [
+        "http-api"
+      ],
+      "$comment": "temporal-worker, cron and stateful are deferred. owner-keycloak's StatefulSet shape is not covered by v0.1.0 at all."
+    },
+    "serviceName": {
+      "description": "Datadog / UST service name. Defaults to the release name.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "logSource": {
+      "description": "`source` in the Datadog log-collection annotation.",
+      "type": "string"
+    },
+    "role": {
+      "description": "Access-role suffix. Fans out to the ServiceAccount name, both assume-role ARNs and the database login.",
+      "type": "string"
+    },
+    "port": {
+      "description": "Container port for the HTTP archetype.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "replicas": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "description": "Defaults to <cluster.imageRegistry>/<release>.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tag": {
+          "description": "Written by CI into image-pin.yaml.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        }
+      }
+    },
+    "resources": {
+      "type": "object"
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "livenessPath": {
+          "description": "A SHALLOW endpoint that does not check dependencies. Null falls back to a TCP check on `port`. Pointing liveness at a dependency-checking endpoint turns an upstream outage into a fleet-wide restart loop.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "readinessPath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "startupBudgetSeconds": {
+          "description": "Divided by the 5s startup period to get failureThreshold.",
+          "type": "integer",
+          "minimum": 5
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "none",
+            "internal"
+          ]
+        },
+        "host": {
+          "description": "Defaults to <release>.<cluster.ingress.<scope>.domain>.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "tlsCompanion": {
+      "description": "Render ONLY the cert-manager Certificate, into the ingress-gateway namespace. Set by the tls-<cluster> variant overlay.",
+      "type": "boolean"
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cluster": {
+          "description": "Key into cluster.databases. An unknown key fails the render - a cluster the catalog does not know about gets a catalog entry, not a host override.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "description": "Defaults to the top-level `role`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Replication-group name. Not derivable from the release name, so it stays explicit.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "endpoint": {
+          "description": "Escape hatch for an off-pattern endpoint (a shared cluster, or a `replica.` reader). Wins over the composed host.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "temporal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "taskQueue": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "client": {
+          "description": "Register the Temporal client on the API container.",
+          "type": "boolean"
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "services": {
+          "description": "In-cluster services, keyed into cluster.services. Each yields a <NAME>_URL env var and an egress rule.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "aws": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dynamodb": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "snowflake": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "s3": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "opensearch": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "domain": {
+                  "description": "Keyed into cluster.opensearch.domains. The VPC endpoint carries a random suffix, so it cannot be derived.",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "workers": {
+      "description": "A map of N workers, each with independent resources and autoscaling.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "temporal-worker"
+            ]
+          },
+          "replicas": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "resources": {
+            "type": "object"
+          },
+          "autoscaling": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "queue",
+              "backlogPerReplica",
+              "maxReplicas"
+            ],
+            "properties": {
+              "queue": {
+                "type": "string"
+              },
+              "backlogPerReplica": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minReplicas": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "maxReplicas": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "env": {
+      "description": "App-team-owned. Keys the chart derives are rejected at render time; see templates/_validate.tpl.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shared": {
+          "$ref": "#/definitions/envBlock"
+        },
+        "main": {
+          "$ref": "#/definitions/envBlock"
+        },
+        "workers": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/envBlock"
+          }
+        }
+      }
+    },
+    "secretKeys": {
+      "description": "Key NAMES only. Values live in Secrets Manager and never appear in git.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "uniqueItems": true
+    },
+    "raw": {
+      "description": "Tier 4. Direct passthrough to the common library, merged last. Identity fields are rejected at render time. CONVENTION: every raw block carries a comment saying why it is here.",
+      "$ref": "https://raw.githubusercontent.com/owner/helm-charts/common-4.6.3/charts/library/common/values.schema.json"
+    },
+    "cluster": {
+      "description": "Platform-owned cluster facts, from argocd/defaults/<cluster>.yaml. Loaded as the first valueFile so an endpoint change reaches every consumer at once instead of needing a fleet-wide targetRevision bump.",
+      "type": "object"
+    }
+  },
+  "definitions": {
+    "envBlock": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ]
+      }
+    }
+  }
+}
