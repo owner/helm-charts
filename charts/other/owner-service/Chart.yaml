@@ -10,7 +10,10 @@ version: 0.1.0
 kubeVersion: ">=1.28.0-0"
 home: https://github.com/owner/helm-charts/tree/main/charts/other/owner-service
 maintainers:
-  - name: Platform Engineering
+  # `ct lint` resolves each maintainer name against the GitHub users API, so
+  # this has to be a login rather than a team. Ownership of the chart sits with
+  # @owner/platform-engineering; the `url` is the durable pointer.
+  - name: thisisamurray
     url: https://github.com/orgs/owner/teams/platform-engineering
 dependencies:
   - name: common
